@@ -1,0 +1,80 @@
+name: CI
+
+env:
+  # Database to connect to that can create other databases with `CREATE DATABASE`.
+  ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432
+
+  # Just a common place for steps to put binaries they need and which is added
+  # to GITHUB_PATH/PATH.
+  BIN_PATH: /home/runner/bin
+
+  # A suitable URL for a test database.
+  TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/riverqueue_ruby_test?sslmode=disable
+
+on:
+  - push
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ruby + `bundle install`
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "head"
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+      - name: Standard Ruby
+        run: bundle exec standardrb
+
+  spec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ruby + `bundle install`
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "head"
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+      # There is a version of Go on Actions' base image, but it's old and can't
+      # read modern `go.mod` annotations correctly.
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "stable"
+          check-latest: true
+
+      - name: Create database
+        run: psql --echo-errors --quiet -c '\timing off' -c "CREATE DATABASE riverqueue_ruby_test;" ${ADMIN_DATABASE_URL}
+
+      - name: Install River CLI
+        run: go install github.com/riverqueue/river/cmd/river@latest
+
+      - name: river migrate-up
+        run: river migrate-up --database-url "$TEST_DATABASE_URL"
+
+      - name: Rspec
+        run: bundle exec rspec
