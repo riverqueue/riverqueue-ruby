@@ -1,0 +1,158 @@
+name: CI
+
+env:
+  # Database to connect to that can create other databases with `CREATE DATABASE`.
+  ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432
+
+  # Just a common place for steps to put binaries they need and which is added
+  # to GITHUB_PATH/PATH.
+  BIN_PATH: /home/runner/bin
+
+  # A suitable URL for a test database.
+  TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/riverqueue_ruby_test?sslmode=disable
+
+on:
+  - push
+
+jobs:
+  gem_build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ruby + `bundle install`
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "head"
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+      - name: Build gem (riverqueue-ruby)
+        run: gem build riverqueue.gemspec
+        working-directory: .
+
+      - name: Build gem (riverqueue-activerecord)
+        run: gem build riverqueue-activerecord.gemspec
+        working-directory: ./drivers/riverqueue-activerecord
+
+      - name: Build gem (riverqueue-sequel)
+        run: gem build riverqueue-sequel.gemspec
+        working-directory: ./drivers/riverqueue-sequel
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ruby + `bundle install`
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "head"
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+      - name: Standard Ruby (riverqueue-ruby)
+        run: bundle exec standardrb
+        working-directory: .
+
+      - name: bundle install (riverqueue-activerecord)
+        run: bundle install
+        working-directory: ./drivers/riverqueue-activerecord
+
+      - name: Standard Ruby (riverqueue-activerecord)
+        run: bundle exec standardrb
+        working-directory: ./drivers/riverqueue-activerecord
+
+      - name: bundle install (riverqueue-sequel)
+        run: bundle install
+        working-directory: ./drivers/riverqueue-sequel
+
+      - name: Standard Ruby (riverqueue-sequel)
+        run: bundle exec standardrb
+        working-directory: ./drivers/riverqueue-sequel
+
+  type_check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ruby + `bundle install`
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "head"
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+      - name: Steep (riverqueue-ruby)
+        run: bundle exec steep check
+        working-directory: .
+
+  spec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ruby + `bundle install`
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "head"
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+      # There is a version of Go on Actions' base image, but it's old and can't
+      # read modern `go.mod` annotations correctly.
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "stable"
+          check-latest: true
+
+      - name: Create database
+        run: psql --echo-errors --quiet -c '\timing off' -c "CREATE DATABASE riverqueue_ruby_test;" ${ADMIN_DATABASE_URL}
+
+      - name: Install River CLI
+        run: go install github.com/riverqueue/river/cmd/river@latest
+
+      - name: river migrate-up
+        run: river migrate-up --database-url "$TEST_DATABASE_URL"
+
+      - name: Rspec (riverqueue-ruby)
+        run: bundle exec rspec
+        working-directory: .
+
+      - name: bundle install (riverqueue-activerecord)
+        run: bundle install
+        working-directory: ./drivers/riverqueue-activerecord
+
+      - name: Rspec (riverqueue-activerecord)
+        run: bundle exec rspec
+        working-directory: ./drivers/riverqueue-activerecord
+
+      - name: bundle install (riverqueue-sequel)
+        run: bundle install
+        working-directory: ./drivers/riverqueue-sequel
+
+      - name: Rspec (riverqueue-sequel)
+        run: bundle exec rspec
+        working-directory: ./drivers/riverqueue-sequel
