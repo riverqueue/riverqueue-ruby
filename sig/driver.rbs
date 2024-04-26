@@ -1,0 +1,27 @@
+module River
+  interface _Driver
+    def insert: (Driver::JobInsertParams) -> JobRow
+  end
+
+  module Driver
+    class JobInsertParams
+      attr_accessor encoded_args: String
+      attr_accessor kind: String
+      attr_accessor max_attempts: Integer
+      attr_accessor priority: Integer
+      attr_accessor queue: String
+      attr_accessor scheduled_at: Time?
+      attr_accessor state: jobStateAll
+      attr_accessor tags: Array[String]?
+
+      # TODO(brandur): Get these supported.
+      # attr_accessor :unique
+      # attr_accessor :unique_by_args
+      # attr_accessor :unique_by_period
+      # attr_accessor :unique_by_queue
+      # attr_accessor :unique_by_state
+
+      def initialize: (encoded_args: String, kind: String, max_attempts: Integer, priority: Integer, queue: String, scheduled_at: Time?, state: jobStateAll, tags: Array[String]?) -> void
+    end
+  end
+end

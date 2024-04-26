@@ -1,0 +1,31 @@
+module River
+  MAX_ATTEMPTS_DEFAULT: Integer
+  PRIORITY_DEFAULT: Integer
+  QUEUE_DEFAULT: String
+
+  class Client
+    @driver: _Driver
+
+    def initialize: (_Driver driver) -> void
+    def insert: (jobArgs, ?insert_opts: InsertOpts) -> InsertResult
+    def insert_many: (Array[jobArgs | InsertManyParams]) -> Integer
+  end
+
+  class InsertManyParams
+    @args: jobArgs
+    @insert_opts: InsertOpts?
+
+    attr_reader args: jobArgs
+    attr_reader insert_opts: InsertOpts?
+
+    def initialize: (jobArgs job, ?insert_opts: InsertOpts?) -> void
+  end
+
+  class InsertResult
+    @job: JobRow
+
+    attr_reader job: JobRow
+
+    def initialize: (JobRow job) -> void
+  end
+end

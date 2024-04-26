@@ -1,0 +1,64 @@
+module River
+  JOB_STATE_AVAILABLE: "available"
+  JOB_STATE_CANCELLED: "cancelled"
+  JOB_STATE_COMPLETED: "completed"
+  JOB_STATE_DISCARDED: "discarded"
+  JOB_STATE_RETRYABLE: "retryable"
+  JOB_STATE_RUNNING: "running"
+  JOB_STATE_SCHEDULED: "scheduled"
+
+  type jobStateAll = "available" | "cancelled" | "completed" | "discarded" | "retryable" | "running" | "scheduled"
+
+  interface _JobArgs
+    def kind: () -> String
+    def respond_to?: (Symbol) -> bool
+    def to_json: () -> String
+  end
+
+  interface _JobArgsWithInsertOpts
+    include _JobArgs
+
+    def insert_opts: () -> InsertOpts?
+  end
+
+  type jobArgs = _JobArgs  | _JobArgsWithInsertOpts
+
+  class JobArgsHash
+    @kind: String
+    @hash: Hash[String | Symbol, untyped]
+
+    attr_reader kind: String
+
+    def initialize: (String kind, Hash[String | Symbol, untyped] hash) -> void
+    def to_json: () -> String
+  end
+
+  class JobRow
+    attr_accessor id: Integer
+    attr_accessor args: Hash[String, untyped]
+    attr_accessor attempt: Integer
+    attr_accessor attempted_at: Time?
+    attr_accessor attempted_by: String?
+    attr_accessor created_at: Time
+    attr_accessor errors: Array[AttemptError]?
+    attr_accessor finalized_at: Time?
+    attr_accessor kind: String
+    attr_accessor max_attempts: Integer
+    attr_accessor priority: Integer
+    attr_accessor queue: String
+    attr_accessor scheduled_at: Time
+    attr_accessor state: jobStateAll
+    attr_accessor tags: Array[String]?
+
+    def initialize: (id: Integer, args: Hash[String, untyped], attempt: Integer, ?attempted_at: Time?, ?attempted_by: String?, created_at: Time, ?errors: Array[AttemptError]?, ?finalized_at: Time?, kind: String, max_attempts: Integer, priority: Integer, queue: String, scheduled_at: Time, state: jobStateAll, ?tags: Array[String]?) -> void
+  end
+
+  class AttemptError
+    attr_accessor at: Time
+    attr_accessor attempt: Integer
+    attr_accessor error: String
+    attr_accessor trace: String
+
+    def initialize: (at: Time, attempt: Integer, error: String, trace: String) -> void
+  end
+end

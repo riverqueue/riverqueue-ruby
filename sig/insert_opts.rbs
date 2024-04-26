@@ -1,0 +1,21 @@
+module River
+  class InsertOpts
+    attr_accessor max_attempts: Integer?
+
+    attr_accessor priority: Integer?
+
+    attr_accessor queue: String?
+
+    attr_accessor scheduled_at: Time?
+
+    attr_accessor tags: Array[String]?
+
+    attr_accessor unique_opts: UniqueOpts?
+
+    def initialize: (?max_attempts: Integer?, ?priority: Integer?, ?queue: String?, ?scheduled_at: Time?, ?tags: Array[String]?, ?unique_opts: UniqueOpts?) -> void
+  end
+
+  class UniqueOpts
+    # TODO
+  end
+end
