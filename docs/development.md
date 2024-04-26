@@ -47,12 +47,19 @@ $ open coverage/index.html
 ```shell
 git checkout master && git pull --rebase
 VERSION=v0.0.x
+
+# update version in riverqueue.gemspec!!
 gem build riverqueue.gemspec
 gem push riverqueue-$VERSION.gem
+
+# update version in drivers/riverqueue-activerecord.gemspec!!
 pushd drivers/riverqueue-activerecord && gem build riverqueue-activerecord.gemspec && popd
 pushd drivers/riverqueue-activerecord && gem push riverqueue-activerecord-$VERSION.gem && popd
+
+# update version in drivers/riverqueue-sequel.gemspec!!
 pushd drivers/riverqueue-sequel && gem build riverqueue-sequel.gemspec && popd
 pushd drivers/riverqueue-sequel && gem push riverqueue-sequel-$VERSION.gem && popd
+
 git tag $VERSION
 git push --tags
 ```
