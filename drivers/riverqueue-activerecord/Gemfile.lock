@@ -1,12 +1,12 @@
 PATH
   remote: ../..
   specs:
-    riverqueue (0.1.0)
+    riverqueue (0.2.0)
 
 PATH
   remote: .
   specs:
-    riverqueue-activerecord (0.1.0)
+    riverqueue-activerecord (0.2.0)
       activerecord (> 0, < 1000)
       activesupport (> 0, < 1000)
       pg (> 0, < 1000)

@@ -1,12 +1,12 @@
 PATH
   remote: ../..
   specs:
-    riverqueue (0.1.0)
+    riverqueue (0.2.0)
 
 PATH
   remote: .
   specs:
-    riverqueue-sequel (0.1.0)
+    riverqueue-sequel (0.2.0)
       pg (> 0, < 1000)
       sequel (> 0, < 1000)
 
