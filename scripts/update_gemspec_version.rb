@@ -8,8 +8,10 @@ version = ENV["VERSION"] || abort("failure: need VERSION")
 
 file_data = File.read(file)
 
-updated_file_data = file_data.gsub(%r{^(\W+)s\.version = "0.2.0"$}, %(\\1s.version = "#{version}"))
+version = version[1..] # strip `v` from the beginning of the string
+
+updated_file_data = file_data.gsub(%r{^(\W+)s\.version = "[\d\.]+"$}, %(\\1s.version = "#{version}"))
 
 abort("failure: nothing changed in file") if file_data == updated_file_data
 
-puts updated_file_data
+File.write(file, updated_file_data)
