@@ -72,4 +72,4 @@ $ open coverage/index.html
     git push --tags
     ```
 
-4. Cut a new GitHub release by visiting [new release](https://github.com/riverqueue/river/releases/new), selecting the new tag, and copying in the version's `CHANGELOG.md` content as the release body.
+4. Cut a new GitHub release by visiting [new release](https://github.com/riverqueue/riverqueue-ruby/releases/new), selecting the new tag, and copying in the version's `CHANGELOG.md` content as the release body.
