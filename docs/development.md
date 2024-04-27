@@ -44,21 +44,24 @@ $ open coverage/index.html
 
 ## Publish gems
 
-Update `CHANGELOG.md` to include the new version and open a pull request with the changes.
-
 ```shell
 git checkout master && git pull --rebase
 export VERSION=v0.0.x
 
-ruby scripts/update_gemspec_version.rb riverqueue.gemspec > riverqueue.gemspec
+ruby scripts/update_gemspec_version.rb riverqueue.gemspec
+ruby scripts/update_gemspec_version.rb drivers/riverqueue-activerecord/riverqueue-activerecord.gemspec
+ruby scripts/update_gemspec_version.rb drivers/riverqueue-sequel/riverqueue-sequel.gemspec
+```
+
+Update `CHANGELOG.md` to include the new version and open a pull request with those changes and the ones to the gemspecs above.
+
+```shell
 gem build riverqueue.gemspec
 gem push riverqueue-${"${VERSION}"/v/}.gem
 
-ruby scripts/update_gemspec_version.rb drivers/riverqueue-activerecord.gemspec > drivers/riverqueue-activerecord.gemspec
 pushd drivers/riverqueue-activerecord && gem build riverqueue-activerecord.gemspec && popd
 pushd drivers/riverqueue-activerecord && gem push riverqueue-activerecord-${"${VERSION}"/v/}.gem && popd
 
-ruby scripts/update_gemspec_version.rb drivers/riverqueue-sequel.gemspec > drivers/riverqueue-sequel.gemspec
 pushd drivers/riverqueue-sequel && gem build riverqueue-sequel.gemspec && popd
 pushd drivers/riverqueue-sequel && gem push riverqueue-sequel-${"${VERSION}"/v/}.gem && popd
 
