@@ -4,9 +4,9 @@ An insert-only Ruby client for [River](https://github.com/riverqueue/river) pack
 
 ## Basic usage
 
-`Gemfile` should contain the core gem and a driver like [`rubyqueue-sequel`](https://github.com/riverqueue/riverqueue-ruby/drivers/riverqueue-sequel) (see [drivers](#drivers)):
+Your project's `Gemfile` should contain the `riverqueue` gem and a driver like [`riverqueue-sequel`](https://github.com/riverqueue/riverqueue-ruby/drivers/riverqueue-sequel) (see [drivers](#drivers)):
 
-``` ruby
+```ruby
 gem "riverqueue"
 gem "riverqueue-sequel"
 ```
@@ -44,7 +44,7 @@ Job args should:
 
 They may also respond to `#insert_opts` with an instance of `InsertOpts` to define insertion options that'll be used for all jobs of the kind.
 
-### Insertion options
+## Insertion options
 
 Inserts take an `insert_opts` parameter to customize features of the inserted job:
 
@@ -60,17 +60,7 @@ insert_res = client.insert(
 )
 ```
 
-### Inserting with a Ruby hash
-
-`JobArgsHash` can be used to insert with a kind and JSON hash so that it's not necessary to define a class:
-
-```ruby
-insert_res = client.insert(River::JobArgsHash.new("hash_kind", {
-    job_num: 1
-}))
-```
-
-### Bulk inserting jobs
+## Inserting jobs in bulk
 
 Use `#insert_many` to bulk insert jobs as a single operation for improved efficiency:
 
@@ -90,16 +80,48 @@ num_inserted = client.insert_many([
 ])
 ```
 
+## Inserting in a transaction
+
+No extra code is needed to insert jobs from inside a transaction. Just make sure that one is open from your ORM of choice, call the normal `#insert` or `#insert_many` methods, and insertions will take part in it.
+
+```ruby
+ActiveRecord::Base.transaction do
+  client.insert(SimpleArgs.new(strings: ["whale", "tiger", "bear"]))
+end
+```
+
+```ruby
+DB.transaction do
+  client.insert(SimpleArgs.new(strings: ["whale", "tiger", "bear"]))
+end
+```
+
+## Inserting with a Ruby hash
+
+`JobArgsHash` can be used to insert with a kind and JSON hash so that it's not necessary to define a class:
+
+```ruby
+insert_res = client.insert(River::JobArgsHash.new("hash_kind", {
+    job_num: 1
+}))
+```
+
+## RBS and type checking
+
+The gem [bundles RBS files](https://github.com/riverqueue/riverqueue-ruby/tree/master/sig) containing type annotations for its API to support type checking in Ruby through a tool like [Sorbet](https://sorbet.org/) or [Steep](https://github.com/soutaro/steep).
+
 ## Drivers
 
 ### ActiveRecord
 
-``` ruby
+Use River with [ActiveRecord](https://guides.rubyonrails.org/active_record_basics.html) by putting the `riverqueue-activerecord` driver in your `Gemfile`:
+
+```ruby
 gem "riverqueue"
 gem "riverqueue-activerecord"
 ```
 
-Initialize driver and client:
+Then initialize driver and client:
 
 ```ruby
 ActiveRecord::Base.establish_connection("postgres://...")
@@ -108,12 +130,14 @@ client = River::Client.new(River::Driver::ActiveRecord.new)
 
 ### Sequel
 
-``` ruby
+Use River with [Sequel](https://github.com/jeremyevans/sequel) by putting the `riverqueue-sequel` driver in your `Gemfile`:
+
+```ruby
 gem "riverqueue"
 gem "riverqueue-sequel"
 ```
 
-Initialize driver and client:
+Then initialize driver and client:
 
 ```ruby
 DB = Sequel.connect("postgres://...")
