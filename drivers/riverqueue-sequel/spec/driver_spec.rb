@@ -127,9 +127,71 @@ RSpec.describe River::Driver::Sequel do
         raise Sequel::Rollback
       end
 
-      # Not visible because the job was rolled back.
+      # Not present because the job was rolled back.
       river_job = River::Driver::Sequel::RiverJob.first(id: insert_res.job.id)
       expect(river_job).to be_nil
+    end
+  end
+
+  describe "#insert_many" do
+    it "inserts multiple jobs" do
+      num_inserted = client.insert_many([
+        SimpleArgs.new(job_num: 1),
+        SimpleArgs.new(job_num: 2)
+      ])
+      expect(num_inserted).to eq(2)
+
+      job1 = driver.send(:to_job_row, River::Driver::Sequel::RiverJob.first)
+      expect(job1).to have_attributes(
+        attempt: 0,
+        args: {"job_num" => 1},
+        created_at: be_within(2).of(Time.now.utc),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        scheduled_at: be_within(2).of(Time.now.utc),
+        state: River::JOB_STATE_AVAILABLE,
+        tags: ::Sequel.pg_array([])
+      )
+
+      job2 = driver.send(:to_job_row, River::Driver::Sequel::RiverJob.limit(nil, 1).first)
+      expect(job2).to have_attributes(
+        attempt: 0,
+        args: {"job_num" => 2},
+        created_at: be_within(2).of(Time.now.utc),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        scheduled_at: be_within(2).of(Time.now.utc),
+        state: River::JOB_STATE_AVAILABLE,
+        tags: ::Sequel.pg_array([])
+      )
+    end
+
+    it "inserts multiple jobs in a transaction" do
+      job1 = nil
+      job2 = nil
+
+      DB.transaction(savepoint: true) do
+        num_inserted = client.insert_many([
+          SimpleArgs.new(job_num: 1),
+          SimpleArgs.new(job_num: 2)
+        ])
+        expect(num_inserted).to eq(2)
+
+        job1 = driver.send(:to_job_row, River::Driver::Sequel::RiverJob.first)
+        job2 = driver.send(:to_job_row, River::Driver::Sequel::RiverJob.limit(nil, 1).first)
+
+        raise Sequel::Rollback
+      end
+
+      # Not present because the jobs were rolled back.
+      river_job1 = River::Driver::Sequel::RiverJob.first(id: job1.id)
+      expect(river_job1).to be_nil
+      river_job2 = River::Driver::Sequel::RiverJob.first(id: job2.id)
+      expect(river_job2).to be_nil
     end
   end
 

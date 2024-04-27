@@ -6,9 +6,13 @@ module River
   class Client
     @driver: _Driver
 
+    EMPTY_INSERT_OPTS: InsertOpts
+
     def initialize: (_Driver driver) -> void
     def insert: (jobArgs, ?insert_opts: InsertOpts) -> InsertResult
     def insert_many: (Array[jobArgs | InsertManyParams]) -> Integer
+
+    private def make_insert_params: (jobArgs, InsertOpts) -> Driver::JobInsertParams
   end
 
   class InsertManyParams
@@ -19,6 +23,7 @@ module River
     attr_reader insert_opts: InsertOpts?
 
     def initialize: (jobArgs job, ?insert_opts: InsertOpts?) -> void
+    def is_a?: (Class) -> bool
   end
 
   class InsertResult

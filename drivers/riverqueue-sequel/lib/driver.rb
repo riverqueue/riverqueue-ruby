@@ -22,22 +22,27 @@ module River::Driver
     end
 
     def insert(insert_params)
+      to_job_row(RiverJob.create(insert_params_to_hash(insert_params)))
+    end
+
+    def insert_many(insert_params_many)
+      RiverJob.multi_insert(insert_params_many.map { |p| insert_params_to_hash(p) })
+      insert_params_many.count
+    end
+
+    private def insert_params_to_hash(insert_params)
       # the call to `#compact` is important so that we remove nils and table
       # default values get picked up instead
-      to_job_row(
-        RiverJob.create(
-          {
-            args: insert_params.encoded_args,
-            kind: insert_params.kind,
-            max_attempts: insert_params.max_attempts,
-            priority: insert_params.priority,
-            queue: insert_params.queue,
-            state: insert_params.state,
-            scheduled_at: insert_params.scheduled_at,
-            tags: insert_params.tags ? ::Sequel.pg_array(insert_params.tags) : nil
-          }.compact
-        )
-      )
+      {
+        args: insert_params.encoded_args,
+        kind: insert_params.kind,
+        max_attempts: insert_params.max_attempts,
+        priority: insert_params.priority,
+        queue: insert_params.queue,
+        state: insert_params.state,
+        scheduled_at: insert_params.scheduled_at,
+        tags: insert_params.tags ? ::Sequel.pg_array(insert_params.tags) : nil
+      }.compact
     end
 
     private def to_job_row(river_job)

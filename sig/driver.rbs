@@ -1,6 +1,7 @@
 module River
   interface _Driver
     def insert: (Driver::JobInsertParams) -> JobRow
+    def insert_many: (Array[Driver::JobInsertParams]) -> Integer
   end
 
   module Driver

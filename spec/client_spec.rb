@@ -3,15 +3,26 @@ require "spec_helper"
 # We use a mock here, but each driver has a more comprehensive test suite that
 # performs full integration level tests.
 class MockDriver
+  attr_accessor :inserted_jobs
+
   def initialize
-    @insert_params = []
+    @inserted_jobs = []
     @next_id = 0
   end
 
   def insert(insert_params)
-    @insert_params << insert_params
+    insert_params_to_jow_row(insert_params)
+  end
 
-    River::JobRow.new(
+  def insert_many(insert_params_many)
+    insert_params_many.each do |insert_params|
+      insert_params_to_jow_row(insert_params)
+    end
+    insert_params_many.count
+  end
+
+  private def insert_params_to_jow_row(insert_params)
+    job = River::JobRow.new(
       id: (@next_id += 1),
       args: JSON.parse(insert_params.encoded_args),
       attempt: 0,
@@ -27,6 +38,8 @@ class MockDriver
       state: insert_params.state,
       tags: insert_params.tags
     )
+    inserted_jobs << job
+    job
   end
 end
 
@@ -164,16 +177,145 @@ RSpec.describe River::Client do
   end
 
   describe "#insert_many" do
-    it "inserts many jobs" do
-      expect do
-        client.insert_many([])
-      end.to raise_error(RuntimeError, "sorry, not implemented yet")
+    it "inserts jobs from jobArgs with defaults" do
+      num_inserted = client.insert_many([
+        SimpleArgs.new(job_num: 1),
+        SimpleArgs.new(job_num: 2)
+      ])
+      expect(num_inserted).to eq(2)
+
+      job1 = mock_driver.inserted_jobs[0]
+      expect(job1).to have_attributes(
+        id: 1,
+        args: {"job_num" => 1},
+        attempt: 0,
+        created_at: be_within(2).of(Time.now),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        scheduled_at: be_within(2).of(Time.now),
+        state: River::JOB_STATE_AVAILABLE,
+        tags: nil
+      )
+
+      job2 = mock_driver.inserted_jobs[1]
+      expect(job2).to have_attributes(
+        id: 2,
+        args: {"job_num" => 2},
+        attempt: 0,
+        created_at: be_within(2).of(Time.now),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        scheduled_at: be_within(2).of(Time.now),
+        state: River::JOB_STATE_AVAILABLE,
+        tags: nil
+      )
+    end
+
+    it "inserts jobs from InsertManyParams with defaults" do
+      num_inserted = client.insert_many([
+        River::InsertManyParams.new(SimpleArgs.new(job_num: 1)),
+        River::InsertManyParams.new(SimpleArgs.new(job_num: 2))
+      ])
+      expect(num_inserted).to eq(2)
+
+      job1 = mock_driver.inserted_jobs[0]
+      expect(job1).to have_attributes(
+        id: 1,
+        args: {"job_num" => 1},
+        attempt: 0,
+        created_at: be_within(2).of(Time.now),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        scheduled_at: be_within(2).of(Time.now),
+        state: River::JOB_STATE_AVAILABLE,
+        tags: nil
+      )
+
+      job2 = mock_driver.inserted_jobs[1]
+      expect(job2).to have_attributes(
+        id: 2,
+        args: {"job_num" => 2},
+        attempt: 0,
+        created_at: be_within(2).of(Time.now),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        scheduled_at: be_within(2).of(Time.now),
+        state: River::JOB_STATE_AVAILABLE,
+        tags: nil
+      )
+    end
+
+    it "inserts jobs with insert opts" do
+      # We set job insert opts in this spec too so that we can verify that the
+      # options passed at insertion time take precedence.
+      args1 = SimpleArgsWithInsertOpts.new(job_num: 1)
+      args1.insert_opts = River::InsertOpts.new(
+        max_attempts: 23,
+        priority: 2,
+        queue: "job_custom_queue_1",
+        tags: ["job_custom_1"]
+      )
+      args2 = SimpleArgsWithInsertOpts.new(job_num: 2)
+      args2.insert_opts = River::InsertOpts.new(
+        max_attempts: 24,
+        priority: 3,
+        queue: "job_custom_queue_2",
+        tags: ["job_custom_2"]
+      )
+
+      num_inserted = client.insert_many([
+        River::InsertManyParams.new(args1, insert_opts: River::InsertOpts.new(
+          max_attempts: 17,
+          priority: 3,
+          queue: "my_queue_1",
+          tags: ["custom_1"]
+        )),
+        River::InsertManyParams.new(args2, insert_opts: River::InsertOpts.new(
+          max_attempts: 18,
+          priority: 4,
+          queue: "my_queue_2",
+          tags: ["custom_2"]
+        ))
+      ])
+      expect(num_inserted).to eq(2)
+
+      job1 = mock_driver.inserted_jobs[0]
+      expect(job1).to have_attributes(
+        max_attempts: 17,
+        priority: 3,
+        queue: "my_queue_1",
+        tags: ["custom_1"]
+      )
+
+      job2 = mock_driver.inserted_jobs[1]
+      expect(job2).to have_attributes(
+        max_attempts: 18,
+        priority: 4,
+        queue: "my_queue_2",
+        tags: ["custom_2"]
+      )
     end
   end
 end
 
 RSpec.describe River::InsertManyParams do
   it "initializes" do
+    args = SimpleArgs.new(job_num: 1)
+
+    params = River::InsertManyParams.new(args)
+    expect(params.args).to eq(args)
+    expect(params.insert_opts).to be_nil
+  end
+
+  it "initializes with insert opts" do
     args = SimpleArgs.new(job_num: 1)
     insert_opts = River::InsertOpts.new(queue: "other")
 

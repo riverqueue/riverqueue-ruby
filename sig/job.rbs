@@ -10,6 +10,7 @@ module River
   type jobStateAll = "available" | "cancelled" | "completed" | "discarded" | "retryable" | "running" | "scheduled"
 
   interface _JobArgs
+    def is_a?: (Class) -> bool
     def kind: () -> String
     def respond_to?: (Symbol) -> bool
     def to_json: () -> String
