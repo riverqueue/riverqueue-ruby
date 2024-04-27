@@ -44,27 +44,32 @@ $ open coverage/index.html
 
 ## Publish gems
 
-```shell
-git checkout master && git pull --rebase
-export VERSION=v0.0.x
+1. Choose a version, run scripts to update the versions in each gemspec file, and build each gem which will update its `Gemfile.lock` with the new version:
 
-ruby scripts/update_gemspec_version.rb riverqueue.gemspec
-ruby scripts/update_gemspec_version.rb drivers/riverqueue-activerecord/riverqueue-activerecord.gemspec
-ruby scripts/update_gemspec_version.rb drivers/riverqueue-sequel/riverqueue-sequel.gemspec
-```
+    ```shell
+    git checkout master && git pull --rebase
+    export VERSION=v0.0.x
 
-Update `CHANGELOG.md` to include the new version and open a pull request with those changes and the ones to the gemspecs above.
+    ruby scripts/update_gemspec_version.rb riverqueue.gemspec
+    ruby scripts/update_gemspec_version.rb drivers/riverqueue-activerecord/riverqueue-activerecord.gemspec
+    ruby scripts/update_gemspec_version.rb drivers/riverqueue-sequel/riverqueue-sequel.gemspec
 
-```shell
-gem build riverqueue.gemspec
-gem push riverqueue-${"${VERSION}"/v/}.gem
+    gem build riverqueue.gemspec
+    pushd drivers/riverqueue-activerecord && gem build riverqueue-activerecord.gemspec && popd
+    pushd drivers/riverqueue-sequel && gem build riverqueue-sequel.gemspec && popd
+    ```
 
-pushd drivers/riverqueue-activerecord && gem build riverqueue-activerecord.gemspec && popd
-pushd drivers/riverqueue-activerecord && gem push riverqueue-activerecord-${"${VERSION}"/v/}.gem && popd
+2. Update `CHANGELOG.md` to include the new version and open a pull request with those changes and the ones to the gemspecs and `Gemfile.lock`s above.
 
-pushd drivers/riverqueue-sequel && gem build riverqueue-sequel.gemspec && popd
-pushd drivers/riverqueue-sequel && gem push riverqueue-sequel-${"${VERSION}"/v/}.gem && popd
+3. Build and push each gem, then tag the release and push that:
 
-git tag $VERSION
-git push --tags
-```
+    ```shell
+    gem push riverqueue-${"${VERSION}"/v/}.gem
+    pushd drivers/riverqueue-activerecord && gem push riverqueue-activerecord-${"${VERSION}"/v/}.gem && popd
+    pushd drivers/riverqueue-sequel && gem push riverqueue-sequel-${"${VERSION}"/v/}.gem && popd
+
+    git tag $VERSION
+    git push --tags
+    ```
+
+4. Cut a new GitHub release by visiting [new release](https://github.com/riverqueue/river/releases/new), selecting the new tag, and copying in the version's `CHANGELOG.md` content as the release body.
