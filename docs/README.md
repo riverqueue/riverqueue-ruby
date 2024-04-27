@@ -34,6 +34,7 @@ class SortArgs
 end
 
 insert_res = client.insert(SimpleArgs.new(strings: ["whale", "tiger", "bear"]))
+insert_res.job # inserted job row
 ```
 
 Job args should:
@@ -67,6 +68,26 @@ insert_res = client.insert(
 insert_res = client.insert(River::JobArgsHash.new("hash_kind", {
     job_num: 1
 }))
+```
+
+### Bulk inserting jobs
+
+Use `#insert_many` to bulk insert jobs as a single operation for improved efficiency:
+
+```ruby
+num_inserted = client.insert_many([
+  SimpleArgs.new(job_num: 1),
+  SimpleArgs.new(job_num: 2)
+])
+```
+
+Or with `InsertManyParams`, which may include insertion options:
+
+```ruby
+num_inserted = client.insert_many([
+  River::InsertManyParams.new(SimpleArgs.new(job_num: 1), insert_opts: InsertOpts.new(max_attempts: 5)),
+  River::InsertManyParams.new(SimpleArgs.new(job_num: 2), insert_opts: InsertOpts.new(queue: "high_priority"))
+])
 ```
 
 ## Drivers

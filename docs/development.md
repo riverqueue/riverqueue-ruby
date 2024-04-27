@@ -44,6 +44,8 @@ $ open coverage/index.html
 
 ## Publish gems
 
+Update `CHANGELOG.md` to include the new version and open a pull request with the changes.
+
 ```shell
 git checkout master && git pull --rebase
 export VERSION=v0.0.x

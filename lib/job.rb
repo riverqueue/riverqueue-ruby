@@ -11,6 +11,12 @@ module River
   # way to insert a job without having to define a class. The first argument is
   # a "kind" string for identifying the job in the database and the second is a
   # hash that will be encoded to JSON.
+  #
+  # For example:
+  #
+  #   insert_res = client.insert(River::JobArgsHash.new("job_kind", {
+  #     job_num: 1
+  #   }))
   class JobArgsHash
     def initialize(kind, hash)
       raise "kind should be non-nil" if !kind

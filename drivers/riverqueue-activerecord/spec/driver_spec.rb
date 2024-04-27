@@ -127,22 +127,86 @@ RSpec.describe River::Driver::ActiveRecord do
         raise ActiveRecord::Rollback
       end
 
-      # Not visible because the job was rolled back.
+      # Not present because the job was rolled back.
       river_job = River::Driver::ActiveRecord::RiverJob.find_by(id: insert_res.job.id)
       expect(river_job).to be_nil
+    end
+  end
+
+  describe "#insert_many" do
+    it "inserts multiple jobs" do
+      num_inserted = client.insert_many([
+        SimpleArgs.new(job_num: 1),
+        SimpleArgs.new(job_num: 2)
+      ])
+      expect(num_inserted).to eq(2)
+
+      job1 = driver.send(:to_job_row, River::Driver::ActiveRecord::RiverJob.first)
+      expect(job1).to have_attributes(
+        attempt: 0,
+        args: {"job_num" => 1},
+        created_at: be_within(2).of(Time.now.utc),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        scheduled_at: be_within(2).of(Time.now.utc),
+        state: River::JOB_STATE_AVAILABLE,
+        tags: []
+      )
+
+      job2 = driver.send(:to_job_row, River::Driver::ActiveRecord::RiverJob.offset(1).first)
+      expect(job2).to have_attributes(
+        attempt: 0,
+        args: {"job_num" => 2},
+        created_at: be_within(2).of(Time.now.utc),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        scheduled_at: be_within(2).of(Time.now.utc),
+        state: River::JOB_STATE_AVAILABLE,
+        tags: []
+      )
+    end
+
+    it "inserts multiple jobs in a transaction" do
+      job1 = nil
+      job2 = nil
+
+      ActiveRecord::Base.transaction(requires_new: true) do
+        num_inserted = client.insert_many([
+          SimpleArgs.new(job_num: 1),
+          SimpleArgs.new(job_num: 2)
+        ])
+        expect(num_inserted).to eq(2)
+
+        job1 = driver.send(:to_job_row, River::Driver::ActiveRecord::RiverJob.first)
+        job2 = driver.send(:to_job_row, River::Driver::ActiveRecord::RiverJob.offset(1).first)
+
+        raise ActiveRecord::Rollback
+      end
+
+      # Not present because the jobs were rolled back.
+      expect do
+        River::Driver::ActiveRecord::RiverJob.find(job1.id)
+      end.to raise_error(ActiveRecord::RecordNotFound)
+      expect do
+        River::Driver::ActiveRecord::RiverJob.find(job2.id)
+      end.to raise_error(ActiveRecord::RecordNotFound)
     end
   end
 
   describe "#to_job_row" do
     it "converts a database record to `River::JobRow`" do
       now = Time.now.utc
-      river_job = {
+      river_job = River::Driver::ActiveRecord::RiverJob.new(
         id: 1,
         attempt: 1,
         attempted_at: now,
         attempted_by: ["client1"],
         created_at: now,
-        args: JSON.generate(%({"job_num":1})), # encoded twice, like how ActiveRecord returns it
+        args: %({"job_num":1}),
         finalized_at: now,
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT,
@@ -151,7 +215,7 @@ RSpec.describe River::Driver::ActiveRecord do
         scheduled_at: now,
         state: River::JOB_STATE_COMPLETED,
         tags: ["tag1"]
-      }.transform_keys { |k| k.to_s }
+      )
 
       job_row = driver.send(:to_job_row, river_job)
 
@@ -176,7 +240,7 @@ RSpec.describe River::Driver::ActiveRecord do
 
     it "with errors" do
       now = Time.now.utc
-      river_job = {
+      river_job = River::Driver::ActiveRecord::RiverJob.new(
         errors: [JSON.dump(
           {
             at: now,
@@ -185,7 +249,7 @@ RSpec.describe River::Driver::ActiveRecord do
             trace: "error trace"
           }
         )]
-      }.transform_keys { |k| k.to_s }
+      )
 
       job_row = driver.send(:to_job_row, river_job)
 

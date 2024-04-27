@@ -20,5 +20,8 @@ standardrb:
 steep:
 	bundle exec steep check
 
+.PHONY: test
+test: spec
+
 .PHONY: type-check
 type-check: steep
