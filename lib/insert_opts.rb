@@ -112,7 +112,7 @@ module River
     # Unlike other unique options, ByState gets a default when it's not set for
     # user convenience. The default is equivalent to:
     #
-    #   ByState: []rivertype.JobState{rivertype.JobStateAvailable, rivertype.JobStateCompleted, rivertype.JobStateRunning, rivertype.JobStateRetryable, rivertype.JobStateScheduled}
+    #   by_state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_COMPLETED, River::JOB_STATE_RUNNING, River::JOB_STATE_RETRYABLE, River::JOB_STATE_SCHEDULED]
     #
     # With this setting, any jobs of the same kind that have been completed or
     # discarded, but not yet cleaned out by the system, won't count towards the
