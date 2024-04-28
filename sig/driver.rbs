@@ -1,10 +1,23 @@
 module River
   interface _Driver
-    def insert: (Driver::JobInsertParams) -> JobRow
-    def insert_many: (Array[Driver::JobInsertParams]) -> Integer
+    def advisory_lock: (Integer) -> void
+    def job_get_by_kind_and_unique_properties: (Driver::JobGetByKindAndUniquePropertiesParam) -> JobRow?
+    def job_insert: (Driver::JobInsertParams) -> JobRow
+    def job_insert_many: (Array[Driver::JobInsertParams]) -> Integer
+    def transaction: [T] () { () -> T } -> T
   end
 
   module Driver
+    class JobGetByKindAndUniquePropertiesParam
+      attr_accessor created_at: [Time, Time]?
+      attr_accessor encoded_args: String?
+      attr_accessor kind: String
+      attr_accessor queue: String?
+      attr_accessor state: Array[jobStateAll]?
+
+      def initialize: (kind: String, ?created_at: [Time, Time]?, ?encoded_args: String?, ?queue: String?, ?state: Array[jobStateAll]?) -> void
+    end
+
     class JobInsertParams
       attr_accessor encoded_args: String
       attr_accessor kind: String
@@ -14,13 +27,6 @@ module River
       attr_accessor scheduled_at: Time?
       attr_accessor state: jobStateAll
       attr_accessor tags: Array[String]?
-
-      # TODO(brandur): Get these supported.
-      # attr_accessor :unique
-      # attr_accessor :unique_by_args
-      # attr_accessor :unique_by_period
-      # attr_accessor :unique_by_queue
-      # attr_accessor :unique_by_state
 
       def initialize: (encoded_args: String, kind: String, max_attempts: Integer, priority: Integer, queue: String, scheduled_at: Time?, state: jobStateAll, tags: Array[String]?) -> void
     end

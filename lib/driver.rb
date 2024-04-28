@@ -4,6 +4,29 @@ module River
   # considered to be for internal use only and subject to change. API stability
   # is not guaranteed.
   module Driver
+    # Parameters for looking up a job by kind and unique properties.
+    class JobGetByKindAndUniquePropertiesParam
+      attr_accessor :created_at
+      attr_accessor :encoded_args
+      attr_accessor :kind
+      attr_accessor :queue
+      attr_accessor :state
+
+      def initialize(
+        kind:,
+        created_at: nil,
+        encoded_args: nil,
+        queue: nil,
+        state: nil
+      )
+        self.kind = kind
+        self.created_at = created_at
+        self.encoded_args = encoded_args
+        self.queue = queue
+        self.state = state
+      end
+    end
+
     # Insert parameters for a job. This is sent to underlying drivers and is meant
     # for internal use only. Its interface is subject to change.
     class JobInsertParams
@@ -15,13 +38,6 @@ module River
       attr_accessor :scheduled_at
       attr_accessor :state
       attr_accessor :tags
-
-      # TODO(brandur): Get these supported.
-      # attr_accessor :unique
-      # attr_accessor :unique_by_args
-      # attr_accessor :unique_by_period
-      # attr_accessor :unique_by_queue
-      # attr_accessor :unique_by_state
 
       def initialize(
         encoded_args:,
