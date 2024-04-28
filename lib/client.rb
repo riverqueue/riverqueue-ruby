@@ -149,7 +149,7 @@ module River
     private def check_unique_job(insert_params, unique_opts, &block)
       return block.call if unique_opts.nil?
 
-      any_changes = false
+      any_unique_opts = false
       get_params = Driver::JobGetByKindAndUniquePropertiesParam.new(kind: insert_params.kind)
 
       # It's extremely important here that this lock string format and algorithm
@@ -159,7 +159,7 @@ module River
       lock_str += "kind=#{insert_params.kind}"
 
       if unique_opts.by_args
-        any_changes = true
+        any_unique_opts = true
         get_params.encoded_args = insert_params.encoded_args
         lock_str += "&args=#{insert_params.encoded_args}"
       end
@@ -167,19 +167,19 @@ module River
       if unique_opts.by_period
         lower_period_bound = truncate_time(@time_now_utc.call, unique_opts.by_period).utc
 
-        any_changes = true
+        any_unique_opts = true
         get_params.created_at = [lower_period_bound, lower_period_bound + unique_opts.by_period]
         lock_str += "&period=#{lower_period_bound.strftime("%FT%TZ")}"
       end
 
       if unique_opts.by_queue
-        any_changes = true
+        any_unique_opts = true
         get_params.queue = insert_params.queue
         lock_str += "&queue=#{insert_params.queue}"
       end
 
       if unique_opts.by_state
-        any_changes = true
+        any_unique_opts = true
         get_params.state = unique_opts.by_state
         lock_str += "&state=#{unique_opts.by_state.join(",")}"
       else
@@ -187,7 +187,7 @@ module River
         lock_str += "&state=#{DEFAULT_UNIQUE_STATES.join(",")}"
       end
 
-      return block.call unless any_changes
+      return block.call unless any_unique_opts
 
       @driver.transaction do
         lock_key = if @advisory_lock_prefix.nil?
