@@ -1,13 +1,13 @@
 PATH
   remote: ../..
   specs:
-    riverqueue (0.2.0)
+    riverqueue (0.3.0)
       fnv-hash
 
 PATH
   remote: .
   specs:
-    riverqueue-activerecord (0.2.0)
+    riverqueue-activerecord (0.3.0)
       activerecord (> 0, < 1000)
       activesupport (> 0, < 1000)
       pg (> 0, < 1000)
