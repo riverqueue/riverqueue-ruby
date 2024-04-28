@@ -1,8 +1,10 @@
 module River
+  # Options for job insertion, and which can be provided by implementing
+  # #insert_opts on job args, or specified as a parameter on #insert or
+  # #insert_many.
   class InsertOpts
-    # MaxAttempts is the maximum number of total attempts (including both the
-    # original run and all retries) before a job is abandoned and set as
-    # discarded.
+    # The maximum number of total attempts (including both the original run and
+    # all retries) before a job is abandoned and set as discarded.
     attr_accessor :max_attempts
 
     # The priority of the job, with 1 being the highest priority and 4 being the
