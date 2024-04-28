@@ -123,7 +123,7 @@ jobs:
       # There is a version of Go on Actions' base image, but it's old and can't
       # read modern `go.mod` annotations correctly.
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: "stable"
           check-latest: true
