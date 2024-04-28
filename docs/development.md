@@ -4,6 +4,8 @@
 
 ```shell
 $ bundle install
+$ pushd drivers/riverqueue-activerecord && bundle install && popd
+$ pushd drivers/riverqueue-sequel && bundle install && popd
 ```
 ## Run tests
 
