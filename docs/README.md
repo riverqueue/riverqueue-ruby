@@ -81,6 +81,16 @@ insert_res.job
 insert_res.unique_skipped_as_duplicated
 ```
 
+### Custom advisory lock prefix
+
+Unique job insertion takes a Postgres advisory lock to make sure that it's uniqueness check still works even if two conflicting insert operations are occurring in parallel. Postgres advisory locks share a global 64-bit namespace, which is a large enough space that it's unlikely for two advisory locks to ever conflict, but to _guarantee_ that River's advisory locks never interfere with an application's, River can be configured with a 32-bit advisory lock prefix which it will use for all its locks:
+
+```ruby
+client = River::Client.new(mock_driver, advisory_lock_prefix: 123456)
+```
+
+Doing so has the downside of leaving only 32 bits for River's locks (64 bits total - 32-bit prefix), making them somewhat more likely to conflict with each other.
+
 ## Inserting jobs in bulk
 
 Use `#insert_many` to bulk insert jobs as a single operation for improved efficiency:
