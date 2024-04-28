@@ -67,7 +67,18 @@ RSpec.describe River::Driver::ActiveRecord do
 
   describe "#advisory_lock" do
     it "takes an advisory lock" do
-      driver.advisory_lock(123)
+      driver.transaction do
+        driver.advisory_lock(123)
+
+        Thread.new do
+          conn = ::ActiveRecord::Base.connection_pool.checkout
+          begin
+            expect(conn.execute("SELECT pg_try_advisory_xact_lock(123)").first["pg_try_advisory_xact_lock"]).to be false
+          ensure
+            ::ActiveRecord::Base.connection_pool.checkin(conn)
+          end
+        end.join
+      end
     end
   end
 

@@ -67,7 +67,13 @@ RSpec.describe River::Driver::Sequel do
 
   describe "#advisory_lock" do
     it "takes an advisory lock" do
-      driver.advisory_lock(123)
+      driver.transaction do
+        driver.advisory_lock(123)
+
+        Thread.new do
+          expect(DB.fetch("SELECT pg_try_advisory_xact_lock(?)", 123).first[:pg_try_advisory_xact_lock]).to be false
+        end.join
+      end
     end
   end
 
