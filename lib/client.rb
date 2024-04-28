@@ -25,18 +25,6 @@ module River
       @time_now_utc = -> { Time.now.utc } # for test time stubbing
     end
 
-    DEFAULT_UNIQUE_STATES = [
-      JOB_STATE_AVAILABLE,
-      JOB_STATE_COMPLETED,
-      JOB_STATE_RUNNING,
-      JOB_STATE_RETRYABLE,
-      JOB_STATE_SCHEDULED
-    ].freeze
-    private_constant :DEFAULT_UNIQUE_STATES
-
-    EMPTY_INSERT_OPTS = InsertOpts.new.freeze
-    private_constant :EMPTY_INSERT_OPTS
-
     # Inserts a new job for work given a job args implementation and insertion
     # options (which may be omitted).
     #
@@ -143,6 +131,20 @@ module River
 
       @driver.job_insert_many(all_params)
     end
+
+    # Default states that are used during a unique insert. Can be overridden by
+    # setting UniqueOpts#by_state.
+    DEFAULT_UNIQUE_STATES = [
+      JOB_STATE_AVAILABLE,
+      JOB_STATE_COMPLETED,
+      JOB_STATE_RUNNING,
+      JOB_STATE_RETRYABLE,
+      JOB_STATE_SCHEDULED
+    ].freeze
+    private_constant :DEFAULT_UNIQUE_STATES
+
+    EMPTY_INSERT_OPTS = InsertOpts.new.freeze
+    private_constant :EMPTY_INSERT_OPTS
 
     private def check_unique_job(insert_params, unique_opts, &block)
       return block.call if unique_opts.nil?
