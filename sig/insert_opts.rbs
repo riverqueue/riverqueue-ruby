@@ -11,6 +11,11 @@ module River
   end
 
   class UniqueOpts
-    # TODO
+    attr_accessor by_args: bool?
+    attr_accessor by_period: Integer?
+    attr_accessor by_queue: bool?
+    attr_accessor by_state: Array[jobStateAll]?
+
+    def initialize: (?by_args: bool?, ?by_period: Integer?, ?by_queue: bool?, ?by_state: Array[jobStateAll]?) -> void
   end
 end

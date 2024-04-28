@@ -25,7 +25,155 @@ RSpec.describe River::Driver::ActiveRecord do
   let!(:driver) { River::Driver::ActiveRecord.new }
   let(:client) { River::Client.new(driver) }
 
-  describe "#insert" do
+  describe "unique insertion" do
+    it "inserts a unique job once" do
+      args = SimpleArgsWithInsertOpts.new(job_num: 1)
+      args.insert_opts = River::InsertOpts.new(
+        unique_opts: River::UniqueOpts.new(
+          by_queue: true
+        )
+      )
+
+      insert_res = client.insert(args)
+      expect(insert_res.job).to_not be_nil
+      expect(insert_res.unique_skipped_as_duplicated).to be false
+      original_job = insert_res.job
+
+      insert_res = client.insert(args)
+      expect(insert_res.job.id).to eq(original_job.id)
+      expect(insert_res.unique_skipped_as_duplicated).to be true
+    end
+
+    it "inserts a unique job with an advisory lock prefix" do
+      client = River::Client.new(driver, advisory_lock_prefix: 123456)
+
+      args = SimpleArgsWithInsertOpts.new(job_num: 1)
+      args.insert_opts = River::InsertOpts.new(
+        unique_opts: River::UniqueOpts.new(
+          by_queue: true
+        )
+      )
+
+      insert_res = client.insert(args)
+      expect(insert_res.job).to_not be_nil
+      expect(insert_res.unique_skipped_as_duplicated).to be false
+      original_job = insert_res.job
+
+      insert_res = client.insert(args)
+      expect(insert_res.job.id).to eq(original_job.id)
+      expect(insert_res.unique_skipped_as_duplicated).to be true
+    end
+  end
+
+  describe "#advisory_lock" do
+    it "takes an advisory lock" do
+      driver.advisory_lock(123)
+    end
+  end
+
+  describe "#job_get_by_kind_and_unique_properties" do
+    let(:job_args) { SimpleArgs.new(job_num: 1) }
+
+    it "gets a job by kind" do
+      insert_res = client.insert(job_args)
+
+      job = driver.send(
+        :to_job_row,
+        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
+          kind: job_args.kind
+        ))
+      )
+      expect(job.id).to eq(insert_res.job.id)
+
+      expect(
+        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
+          kind: "does_not_exist"
+        ))
+      ).to be_nil
+    end
+
+    it "gets a job by created at period" do
+      insert_res = client.insert(job_args)
+
+      job = driver.send(
+        :to_job_row,
+        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
+          kind: job_args.kind,
+          created_at: [insert_res.job.created_at - 1, insert_res.job.created_at + 1]
+        ))
+      )
+      expect(job.id).to eq(insert_res.job.id)
+
+      expect(
+        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
+          kind: job_args.kind,
+          created_at: [insert_res.job.created_at + 1, insert_res.job.created_at + 3]
+        ))
+      ).to be_nil
+    end
+
+    it "gets a job by encoded args" do
+      insert_res = client.insert(job_args)
+
+      job = driver.send(
+        :to_job_row,
+        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
+          kind: job_args.kind,
+          encoded_args: JSON.dump(insert_res.job.args)
+        ))
+      )
+      expect(job.id).to eq(insert_res.job.id)
+
+      expect(
+        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
+          kind: job_args.kind,
+          encoded_args: JSON.dump({"job_num" => 2})
+        ))
+      ).to be_nil
+    end
+
+    it "gets a job by queue" do
+      insert_res = client.insert(job_args)
+
+      job = driver.send(
+        :to_job_row,
+        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
+          kind: job_args.kind,
+          queue: insert_res.job.queue
+        ))
+      )
+      expect(job.id).to eq(insert_res.job.id)
+
+      expect(
+        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
+          kind: job_args.kind,
+          queue: "other_queue"
+        ))
+      ).to be_nil
+    end
+
+    it "gets a job by state" do
+      insert_res = client.insert(job_args)
+
+      job = driver.send(
+        :to_job_row,
+        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
+          kind: job_args.kind,
+          state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_COMPLETED]
+        ))
+      )
+      expect(job.id).to eq(insert_res.job.id)
+
+      expect(
+        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
+          kind: job_args.kind,
+          state: [River::JOB_STATE_RUNNING, River::JOB_STATE_SCHEDULED]
+        ))
+      ).to be_nil
+    end
+  end
+
+  describe "#job_insert" do
     it "inserts a job" do
       insert_res = client.insert(SimpleArgs.new(job_num: 1))
       expect(insert_res.job).to have_attributes(
@@ -133,7 +281,7 @@ RSpec.describe River::Driver::ActiveRecord do
     end
   end
 
-  describe "#insert_many" do
+  describe "#job_insert_many" do
     it "inserts multiple jobs" do
       num_inserted = client.insert_many([
         SimpleArgs.new(job_num: 1),
@@ -194,6 +342,25 @@ RSpec.describe River::Driver::ActiveRecord do
       expect do
         River::Driver::ActiveRecord::RiverJob.find(job2.id)
       end.to raise_error(ActiveRecord::RecordNotFound)
+    end
+  end
+
+  describe "#transaction" do
+    it "runs block in a transaction" do
+      insert_res = nil
+
+      driver.transaction do
+        insert_res = client.insert(SimpleArgs.new(job_num: 1))
+
+        river_job = River::Driver::ActiveRecord::RiverJob.find_by(id: insert_res.job.id)
+        expect(river_job).to_not be_nil
+
+        raise ActiveRecord::Rollback
+      end
+
+      # Not present because the job was rolled back.
+      river_job = River::Driver::ActiveRecord::RiverJob.find_by(id: insert_res.job.id)
+      expect(river_job).to be_nil
     end
   end
 

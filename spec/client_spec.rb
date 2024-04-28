@@ -3,25 +3,44 @@ require "spec_helper"
 # We use a mock here, but each driver has a more comprehensive test suite that
 # performs full integration level tests.
 class MockDriver
+  attr_accessor :advisory_lock_calls
   attr_accessor :inserted_jobs
+  attr_accessor :job_get_by_kind_and_unique_properties_calls
+  attr_accessor :job_get_by_kind_and_unique_properties_returns
 
   def initialize
+    @advisory_lock_calls = []
     @inserted_jobs = []
+    @job_get_by_kind_and_unique_properties_calls = []
+    @job_get_by_kind_and_unique_properties_returns = []
     @next_id = 0
   end
 
-  def insert(insert_params)
+  def advisory_lock(key)
+    @advisory_lock_calls << key
+  end
+
+  def job_get_by_kind_and_unique_properties(get_params)
+    @job_get_by_kind_and_unique_properties_calls << get_params
+    job_get_by_kind_and_unique_properties_returns.shift
+  end
+
+  def job_insert(insert_params)
     insert_params_to_jow_row(insert_params)
   end
 
-  def insert_many(insert_params_many)
+  def job_insert_many(insert_params_many)
     insert_params_many.each do |insert_params|
       insert_params_to_jow_row(insert_params)
     end
     insert_params_many.count
   end
 
-  private def insert_params_to_jow_row(insert_params)
+  def transaction(&)
+    yield
+  end
+
+  def insert_params_to_jow_row(insert_params)
     job = River::JobRow.new(
       id: (@next_id += 1),
       args: JSON.parse(insert_params.encoded_args),
@@ -174,6 +193,123 @@ RSpec.describe River::Client do
         client.insert(args_klass.new)
       end.to raise_error(RuntimeError, "args should return non-nil from `#to_json`")
     end
+
+    def check_bigint_bounds(int)
+      raise "lock key shouldn't be larger than Postgres bigint max (9223372036854775807); was: #{int}" if int > 9223372036854775807
+      raise "lock key shouldn't be smaller than Postgres bigint min (-9223372036854775808); was: #{int}" if int < -9223372036854775808
+      int
+    end
+
+    # These unique insertion specs are pretty mock heavy, but each of the
+    # individual drivers has their own unique insert tests that make sure to do
+    # a full round trip.
+    describe "unique opts" do
+      let(:now) { Time.now.utc }
+      before { client.instance_variable_set(:@time_now_utc, -> { now }) }
+
+      it "inserts a new unique job with minimal options" do
+        args = SimpleArgsWithInsertOpts.new(job_num: 1)
+        args.insert_opts = River::InsertOpts.new(
+          unique_opts: River::UniqueOpts.new(
+            by_queue: true
+          )
+        )
+
+        insert_res = client.insert(args)
+        expect(insert_res.job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        lock_str = "unique_keykind=#{args.kind}" \
+          "&queue=#{River::QUEUE_DEFAULT}" \
+          "&state=#{River::Client.const_get(:DEFAULT_UNIQUE_STATES).join(",")}"
+        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, Fnv::Hash.fnv_1(lock_str, size: 64)))])
+      end
+
+      it "inserts a new unique job with all options" do
+        args = SimpleArgsWithInsertOpts.new(job_num: 1)
+        args.insert_opts = River::InsertOpts.new(
+          unique_opts: River::UniqueOpts.new(
+            by_args: true,
+            by_period: 15 * 60,
+            by_queue: true,
+            by_state: [River::JOB_STATE_AVAILABLE]
+          )
+        )
+
+        insert_res = client.insert(args)
+        expect(insert_res.job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        lock_str = "unique_keykind=#{args.kind}" \
+          "&args=#{JSON.dump({job_num: 1})}" \
+          "&period=#{client.send(:truncate_time, now, 15 * 60).utc.strftime("%FT%TZ")}" \
+          "&queue=#{River::QUEUE_DEFAULT}" \
+          "&state=#{[River::JOB_STATE_AVAILABLE].join(",")}"
+        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, Fnv::Hash.fnv_1(lock_str, size: 64)))])
+      end
+
+      it "inserts a new unique job with advisory lock prefix" do
+        client = River::Client.new(mock_driver, advisory_lock_prefix: 123456)
+
+        args = SimpleArgsWithInsertOpts.new(job_num: 1)
+        args.insert_opts = River::InsertOpts.new(
+          unique_opts: River::UniqueOpts.new(
+            by_queue: true
+          )
+        )
+
+        insert_res = client.insert(args)
+        expect(insert_res.job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        lock_str = "unique_keykind=#{args.kind}" \
+          "&queue=#{River::QUEUE_DEFAULT}" \
+          "&state=#{River::Client.const_get(:DEFAULT_UNIQUE_STATES).join(",")}"
+        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, 123456 << 32 | Fnv::Hash.fnv_1(lock_str, size: 32)))])
+
+        lock_key = mock_driver.advisory_lock_calls[0]
+        expect(lock_key >> 32).to eq(123456)
+      end
+
+      it "gets an existing unique job" do
+        args = SimpleArgsWithInsertOpts.new(job_num: 1)
+        args.insert_opts = River::InsertOpts.new(
+          unique_opts: River::UniqueOpts.new(
+            by_args: true,
+            by_period: 15 * 60,
+            by_queue: true,
+            by_state: [River::JOB_STATE_AVAILABLE]
+          )
+        )
+
+        job = mock_driver.insert_params_to_jow_row(client.send(:make_insert_params, args, River::InsertOpts.new)[0])
+        mock_driver.job_get_by_kind_and_unique_properties_returns << job
+
+        insert_res = client.insert(args)
+        expect(insert_res).to have_attributes(
+          job: job,
+          unique_skipped_as_duplicated: true
+        )
+
+        lock_str = "unique_keykind=#{args.kind}" \
+          "&args=#{JSON.dump({job_num: 1})}" \
+          "&period=#{client.send(:truncate_time, now, 15 * 60).utc.strftime("%FT%TZ")}" \
+          "&queue=#{River::QUEUE_DEFAULT}" \
+          "&state=#{[River::JOB_STATE_AVAILABLE].join(",")}"
+        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, Fnv::Hash.fnv_1(lock_str, size: 64)))])
+      end
+
+      it "skips unique check if unique opts empty" do
+        args = SimpleArgsWithInsertOpts.new(job_num: 1)
+        args.insert_opts = River::InsertOpts.new(
+          unique_opts: River::UniqueOpts.new
+        )
+
+        insert_res = client.insert(args)
+        expect(insert_res.job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be false
+      end
+    end
   end
 
   describe "#insert_many" do
@@ -302,6 +438,34 @@ RSpec.describe River::Client do
         queue: "my_queue_2",
         tags: ["custom_2"]
       )
+    end
+
+    it "raises error with unique opts" do
+      expect do
+        client.insert_many([
+          River::InsertManyParams.new(SimpleArgs.new(job_num: 1), insert_opts: River::InsertOpts.new(
+            unique_opts: River::UniqueOpts.new
+          ))
+        ])
+      end.to raise_error(ArgumentError, "unique opts can't be used with `#insert_many`")
+    end
+  end
+
+  describe "#truncate_time" do
+    it "truncates times to nearest interval" do
+      expect(client.send(:truncate_time, Time.parse("Thu Jan 15 21:26:36 UTC 2024").utc,       1 * 60).utc).to eq(Time.parse("Thu Jan 15 21:26:00 UTC 2024")) # rubocop:disable Layout/ExtraSpacing
+      expect(client.send(:truncate_time, Time.parse("Thu Jan 15 21:26:36 UTC 2024").utc,       5 * 60).utc).to eq(Time.parse("Thu Jan 15 21:25:00 UTC 2024")) # rubocop:disable Layout/ExtraSpacing
+      expect(client.send(:truncate_time, Time.parse("Thu Jan 15 21:26:36 UTC 2024").utc,      15 * 60).utc).to eq(Time.parse("Thu Jan 15 21:15:00 UTC 2024")) # rubocop:disable Layout/ExtraSpacing
+      expect(client.send(:truncate_time, Time.parse("Thu Jan 15 21:26:36 UTC 2024").utc,  1 * 60 * 60).utc).to eq(Time.parse("Thu Jan 15 21:00:00 UTC 2024")) # rubocop:disable Layout/ExtraSpacing
+      expect(client.send(:truncate_time, Time.parse("Thu Jan 15 21:26:36 UTC 2024").utc,  5 * 60 * 60).utc).to eq(Time.parse("Thu Jan 15 17:00:00 UTC 2024")) # rubocop:disable Layout/ExtraSpacing
+      expect(client.send(:truncate_time, Time.parse("Thu Jan 15 21:26:36 UTC 2024").utc, 24 * 60 * 60).utc).to eq(Time.parse("Thu Jan 15 00:00:00 UTC 2024"))
+    end
+  end
+
+  describe "#uint64_to_int64" do
+    it "converts between integer types" do
+      expect(client.send(:uint64_to_int64, 123456)).to eq(123456)
+      expect(client.send(:uint64_to_int64, 13977996710702069744)).to eq(-4468747363007481872)
     end
   end
 end

@@ -31,13 +31,30 @@ module River::Driver
       end
     end
 
-    def insert(insert_params)
+    def advisory_lock(key)
+      ::ActiveRecord::Base.connection.execute("SELECT pg_advisory_xact_lock(#{key})")
+    end
+
+    def job_get_by_kind_and_unique_properties(get_params)
+      data_set = RiverJob.where(kind: get_params.kind)
+      data_set = data_set.where("tstzrange(?, ?, '[)') @> created_at", get_params.created_at[0], get_params.created_at[1]) if get_params.created_at
+      data_set = data_set.where(args: get_params.encoded_args) if get_params.encoded_args
+      data_set = data_set.where(queue: get_params.queue) if get_params.queue
+      data_set = data_set.where(state: get_params.state) if get_params.state
+      data_set.take
+    end
+
+    def job_insert(insert_params)
       to_job_row(RiverJob.create(insert_params_to_hash(insert_params)))
     end
 
-    def insert_many(insert_params_many)
+    def job_insert_many(insert_params_many)
       RiverJob.insert_all(insert_params_many.map { |p| insert_params_to_hash(p) })
       insert_params_many.count
+    end
+
+    def transaction(&)
+      ::ActiveRecord::Base.transaction(requires_new: true, &)
     end
 
     private def insert_params_to_hash(insert_params)

@@ -60,6 +60,27 @@ insert_res = client.insert(
 )
 ```
 
+## Inserting unique jobs
+
+[Unique jobs](https://riverqueue.com/docs/unique-jobs) are supported through `InsertOpts#unique_opts`, and can be made unique by args, period, queue, and state. If a job matching unique properties is found on insert, the insert is skipped and the existing job returned.
+
+```ruby
+insert_res = client.insert(args, insert_opts: River::InsertOpts.new(
+  unique_opts: River::UniqueOpts.new(
+    by_args: true,
+    by_period: 15 * 60,
+    by_queue: true,
+    by_state: [River::JOB_STATE_AVAILABLE]
+  )
+)
+
+# contains either a newly inserted job, or an existing one if insertion was skipped
+insert_res.job
+
+# true if insertion was skipped
+insert_res.unique_skipped_as_duplicated
+```
+
 ## Inserting jobs in bulk
 
 Use `#insert_many` to bulk insert jobs as a single operation for improved efficiency:
@@ -75,8 +96,8 @@ Or with `InsertManyParams`, which may include insertion options:
 
 ```ruby
 num_inserted = client.insert_many([
-  River::InsertManyParams.new(SimpleArgs.new(job_num: 1), insert_opts: InsertOpts.new(max_attempts: 5)),
-  River::InsertManyParams.new(SimpleArgs.new(job_num: 2), insert_opts: InsertOpts.new(queue: "high_priority"))
+  River::InsertManyParams.new(SimpleArgs.new(job_num: 1), insert_opts: River::InsertOpts.new(max_attempts: 5)),
+  River::InsertManyParams.new(SimpleArgs.new(job_num: 2), insert_opts: River::InsertOpts.new(queue: "high_priority"))
 ])
 ```
 

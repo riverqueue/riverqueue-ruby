@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Implement unique job insertion. [PR #10](https://github.com/riverqueue/riverqueue-ruby/pull/10).
+
 ## [0.2.0] - 2024-04-27
 
 ### Added

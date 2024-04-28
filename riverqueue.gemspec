@@ -8,4 +8,6 @@ Gem::Specification.new do |s|
   s.files = ["lib/riverqueue.rb"]
   s.homepage = "https://riverqueue.com"
   s.license = "LGPL-3.0-or-later"
+
+  s.add_dependency "fnv-hash"
 end
