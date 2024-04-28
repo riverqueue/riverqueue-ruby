@@ -44,7 +44,7 @@ $ open coverage/index.html
 
 ## Publish gems
 
-1. Choose a version, run scripts to update the versions in each gemspec file, and build each gem which will update its `Gemfile.lock` with the new version:
+1. Choose a version, run scripts to update the versions in each gemspec file, build each gem, and `bundle install` which will update its `Gemfile.lock` with the new version:
 
     ```shell
     git checkout master && git pull --rebase
@@ -57,6 +57,12 @@ $ open coverage/index.html
     gem build riverqueue.gemspec
     pushd drivers/riverqueue-activerecord && gem build riverqueue-activerecord.gemspec && popd
     pushd drivers/riverqueue-sequel && gem build riverqueue-sequel.gemspec && popd
+
+    bundle install
+    pushd drivers/riverqueue-activerecord && bundle install && popd
+    pushd drivers/riverqueue-sequel && bundle install && popd
+
+    gco -b $USER-$VERSION
     ```
 
 2. Update `CHANGELOG.md` to include the new version and open a pull request with those changes and the ones to the gemspecs and `Gemfile.lock`s above.
@@ -72,4 +78,4 @@ $ open coverage/index.html
     git push --tags
     ```
 
-4. Cut a new GitHub release by visiting [new release](https://github.com/riverqueue/riverqueue-ruby/releases/new), selecting the new tag, and copying in the version's `CHANGELOG.md` content as the release body.
+4. Cut a new GitHub release by visiting [new release](https://github.com/riverqueue/river/releases/new), selecting the new tag, and copying in the version's `CHANGELOG.md` content as the release body.

@@ -1,13 +1,13 @@
 PATH
   remote: ../..
   specs:
-    riverqueue (0.2.0)
+    riverqueue (0.3.0)
       fnv-hash
 
 PATH
   remote: .
   specs:
-    riverqueue-sequel (0.2.0)
+    riverqueue-sequel (0.3.0)
       pg (> 0, < 1000)
       sequel (> 0, < 1000)
 
