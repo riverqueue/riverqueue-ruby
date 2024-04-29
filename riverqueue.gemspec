@@ -8,6 +8,12 @@ Gem::Specification.new do |s|
   s.files = ["lib/riverqueue.rb"]
   s.homepage = "https://riverqueue.com"
   s.license = "LGPL-3.0-or-later"
+  s.metadata = {
+    "bug_tracker_uri" => "https://github.com/riverqueue/riverqueue-ruby/issues",
+    "changelog_uri" => "https://github.com/riverqueue/riverqueue-ruby/blob/master/CHANGELOG.md",
+    "rubygems_mfa_required" => "true",
+    "source_code_uri" => "https://github.com/riverqueue/riverqueue-ruby"
+  }
 
   s.add_dependency "fnv-hash"
 end
