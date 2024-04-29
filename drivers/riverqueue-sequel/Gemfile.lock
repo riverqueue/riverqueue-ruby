@@ -1,13 +1,12 @@
 PATH
   remote: ../..
   specs:
-    riverqueue (0.3.0)
-      fnv-hash
+    riverqueue (0.4.0)
 
 PATH
   remote: .
   specs:
-    riverqueue-sequel (0.3.0)
+    riverqueue-sequel (0.4.0)
       pg (> 0, < 1000)
       sequel (> 0, < 1000)
 
@@ -18,7 +17,6 @@ GEM
     bigdecimal (3.1.7)
     diff-lcs (1.5.1)
     docile (1.4.0)
-    fnv-hash (0.2.0)
     json (2.7.2)
     language_server-protocol (3.17.0.3)
     lint_roller (1.1.0)

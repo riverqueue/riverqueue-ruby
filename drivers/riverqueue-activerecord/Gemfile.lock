@@ -1,13 +1,12 @@
 PATH
   remote: ../..
   specs:
-    riverqueue (0.3.0)
-      fnv-hash
+    riverqueue (0.4.0)
 
 PATH
   remote: .
   specs:
-    riverqueue-activerecord (0.3.0)
+    riverqueue-activerecord (0.4.0)
       activerecord (> 0, < 1000)
       activesupport (> 0, < 1000)
       pg (> 0, < 1000)
@@ -42,7 +41,6 @@ GEM
     diff-lcs (1.5.1)
     docile (1.4.0)
     drb (2.2.1)
-    fnv-hash (0.2.0)
     i18n (1.14.4)
       concurrent-ruby (~> 1.0)
     io-console (0.7.2)
