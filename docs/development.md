@@ -72,7 +72,7 @@ $ open coverage/index.html
 3. Build and push each gem, then tag the release and push that:
 
     ```shell
-    git pull
+    git pull origin master
 
     gem push riverqueue-${"${VERSION}"/v/}.gem
     pushd drivers/riverqueue-activerecord && gem push riverqueue-activerecord-${"${VERSION}"/v/}.gem && popd
