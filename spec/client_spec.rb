@@ -222,7 +222,7 @@ RSpec.describe River::Client do
         lock_str = "unique_keykind=#{job_args.kind}" \
           "&queue=#{River::QUEUE_DEFAULT}" \
           "&state=#{River::Client.const_get(:DEFAULT_UNIQUE_STATES).join(",")}"
-        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, Fnv::Hash.fnv_1(lock_str, size: 64)))])
+        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, River::FNV.fnv1_hash(lock_str, size: 64)))])
       end
 
       it "inserts a new unique job with all options" do
@@ -245,7 +245,7 @@ RSpec.describe River::Client do
           "&period=#{client.send(:truncate_time, now, 15 * 60).utc.strftime("%FT%TZ")}" \
           "&queue=#{River::QUEUE_DEFAULT}" \
           "&state=#{[River::JOB_STATE_AVAILABLE].join(",")}"
-        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, Fnv::Hash.fnv_1(lock_str, size: 64)))])
+        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, River::FNV.fnv1_hash(lock_str, size: 64)))])
       end
 
       it "inserts a new unique job with advisory lock prefix" do
@@ -265,7 +265,7 @@ RSpec.describe River::Client do
         lock_str = "unique_keykind=#{job_args.kind}" \
           "&queue=#{River::QUEUE_DEFAULT}" \
           "&state=#{River::Client.const_get(:DEFAULT_UNIQUE_STATES).join(",")}"
-        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, 123456 << 32 | Fnv::Hash.fnv_1(lock_str, size: 32)))])
+        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, 123456 << 32 | River::FNV.fnv1_hash(lock_str, size: 32)))])
 
         lock_key = mock_driver.advisory_lock_calls[0]
         expect(lock_key >> 32).to eq(123456)
@@ -300,7 +300,7 @@ RSpec.describe River::Client do
           "&period=#{client.send(:truncate_time, now, 15 * 60).utc.strftime("%FT%TZ")}" \
           "&queue=#{River::QUEUE_DEFAULT}" \
           "&state=#{[River::JOB_STATE_AVAILABLE].join(",")}"
-        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, Fnv::Hash.fnv_1(lock_str, size: 64)))])
+        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, River::FNV.fnv1_hash(lock_str, size: 64)))])
       end
 
       it "skips unique check if unique opts empty" do

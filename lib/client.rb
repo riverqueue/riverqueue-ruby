@@ -191,11 +191,11 @@ module River
 
       @driver.transaction do
         lock_key = if @advisory_lock_prefix.nil?
-          Fnv::Hash.fnv_1(lock_str, size: 64)
+          FNV.fnv1_hash(lock_str, size: 64)
         else
           # Steep should be able to tell that this is not nil, but it can't.
           prefix = @advisory_lock_prefix #: Integer # rubocop:disable Layout/LeadingCommentSpace
-          prefix << 32 | Fnv::Hash.fnv_1(lock_str, size: 32)
+          prefix << 32 | FNV.fnv1_hash(lock_str, size: 32)
         end
 
         # Packs a uint64 then unpacks to int64, which we need to do to keep the

@@ -14,6 +14,4 @@ Gem::Specification.new do |s|
     "rubygems_mfa_required" => "true",
     "source_code_uri" => "https://github.com/riverqueue/riverqueue-ruby"
   }
-
-  s.add_dependency "fnv-hash"
 end
