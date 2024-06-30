@@ -1,7 +1,7 @@
 require "active_record"
 require "debug"
 
-ActiveRecord::Base.establish_connection(ENV["TEST_DATABASE_URL"] || "postgres://localhost/riverqueue_ruby_test")
+ActiveRecord::Base.establish_connection(ENV["TEST_DATABASE_URL"] || "postgres://localhost/river_test")
 
 def test_transaction
   ActiveRecord::Base.transaction do

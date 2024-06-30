@@ -11,8 +11,8 @@ Create a test database and migrate with River's CLI:
 
 ```shell
 $ go install github.com/riverqueue/river/cmd/river
-$ createdb riverqueue_ruby_test
-$ river migrate-up --database-url "postgres://localhost/riverqueue_ruby_test"
+$ createdb river_test
+$ river migrate-up --database-url "postgres://localhost/river_test"
 ```
 
 Run all specs:
