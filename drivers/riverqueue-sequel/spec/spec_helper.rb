@@ -1,6 +1,6 @@
 require "sequel"
 
-DB = Sequel.connect(ENV["TEST_DATABASE_URL"] || "postgres://localhost/riverqueue_ruby_test")
+DB = Sequel.connect(ENV["TEST_DATABASE_URL"] || "postgres://localhost/river_test")
 
 def test_transaction
   DB.transaction do
