@@ -35,11 +35,11 @@ jobs:
 
       - name: Build gem (riverqueue-activerecord)
         run: gem build riverqueue-activerecord.gemspec
-        working-directory: ./drivers/riverqueue-activerecord
+        working-directory: ./driver/riverqueue-activerecord
 
       - name: Build gem (riverqueue-sequel)
         run: gem build riverqueue-sequel.gemspec
-        working-directory: ./drivers/riverqueue-sequel
+        working-directory: ./driver/riverqueue-sequel
 
   lint:
     runs-on: ubuntu-latest
@@ -61,19 +61,19 @@ jobs:
 
       - name: bundle install (riverqueue-activerecord)
         run: bundle install
-        working-directory: ./drivers/riverqueue-activerecord
+        working-directory: ./driver/riverqueue-activerecord
 
       - name: Standard Ruby (riverqueue-activerecord)
         run: bundle exec standardrb
-        working-directory: ./drivers/riverqueue-activerecord
+        working-directory: ./driver/riverqueue-activerecord
 
       - name: bundle install (riverqueue-sequel)
         run: bundle install
-        working-directory: ./drivers/riverqueue-sequel
+        working-directory: ./driver/riverqueue-sequel
 
       - name: Standard Ruby (riverqueue-sequel)
         run: bundle exec standardrb
-        working-directory: ./drivers/riverqueue-sequel
+        working-directory: ./driver/riverqueue-sequel
 
   type_check:
     runs-on: ubuntu-latest
@@ -143,16 +143,16 @@ jobs:
 
       - name: bundle install (riverqueue-activerecord)
         run: bundle install
-        working-directory: ./drivers/riverqueue-activerecord
+        working-directory: ./driver/riverqueue-activerecord
 
       - name: Rspec (riverqueue-activerecord)
         run: bundle exec rspec
-        working-directory: ./drivers/riverqueue-activerecord
+        working-directory: ./driver/riverqueue-activerecord
 
       - name: bundle install (riverqueue-sequel)
         run: bundle install
-        working-directory: ./drivers/riverqueue-sequel
+        working-directory: ./driver/riverqueue-sequel
 
       - name: Rspec (riverqueue-sequel)
         run: bundle exec rspec
-        working-directory: ./drivers/riverqueue-sequel
+        working-directory: ./driver/riverqueue-sequel
