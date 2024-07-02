@@ -4,7 +4,7 @@ An insert-only Ruby client for [River](https://github.com/riverqueue/river) pack
 
 ## Basic usage
 
-Your project's `Gemfile` should contain the `riverqueue` gem and a driver like [`riverqueue-sequel`](https://github.com/riverqueue/riverqueue-ruby/drivers/riverqueue-sequel) (see [drivers](#drivers)):
+Your project's `Gemfile` should contain the `riverqueue` gem and a driver like [`riverqueue-sequel`](https://github.com/riverqueue/riverqueue-ruby/driver/riverqueue-sequel) (see [drivers](#drivers)):
 
 ```ruby
 gem "riverqueue"

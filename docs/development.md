@@ -4,8 +4,8 @@
 
 ```shell
 $ bundle install
-$ pushd drivers/riverqueue-activerecord && bundle install && popd
-$ pushd drivers/riverqueue-sequel && bundle install && popd
+$ pushd driver/riverqueue-activerecord && bundle install && popd
+$ pushd driver/riverqueue-sequel && bundle install && popd
 ```
 ## Run tests
 
@@ -53,16 +53,16 @@ $ open coverage/index.html
     export VERSION=v0.0.x
 
     ruby scripts/update_gemspec_version.rb riverqueue.gemspec
-    ruby scripts/update_gemspec_version.rb drivers/riverqueue-activerecord/riverqueue-activerecord.gemspec
-    ruby scripts/update_gemspec_version.rb drivers/riverqueue-sequel/riverqueue-sequel.gemspec
+    ruby scripts/update_gemspec_version.rb driver/riverqueue-activerecord/riverqueue-activerecord.gemspec
+    ruby scripts/update_gemspec_version.rb driver/riverqueue-sequel/riverqueue-sequel.gemspec
 
     gem build riverqueue.gemspec
-    pushd drivers/riverqueue-activerecord && gem build riverqueue-activerecord.gemspec && popd
-    pushd drivers/riverqueue-sequel && gem build riverqueue-sequel.gemspec && popd
+    pushd driver/riverqueue-activerecord && gem build riverqueue-activerecord.gemspec && popd
+    pushd driver/riverqueue-sequel && gem build riverqueue-sequel.gemspec && popd
 
     bundle install
-    pushd drivers/riverqueue-activerecord && bundle install && popd
-    pushd drivers/riverqueue-sequel && bundle install && popd
+    pushd driver/riverqueue-activerecord && bundle install && popd
+    pushd driver/riverqueue-sequel && bundle install && popd
 
     gco -b $USER-$VERSION
     ```
@@ -75,8 +75,8 @@ $ open coverage/index.html
     git pull origin master
 
     gem push riverqueue-${"${VERSION}"/v/}.gem
-    pushd drivers/riverqueue-activerecord && gem push riverqueue-activerecord-${"${VERSION}"/v/}.gem && popd
-    pushd drivers/riverqueue-sequel && gem push riverqueue-sequel-${"${VERSION}"/v/}.gem && popd
+    pushd driver/riverqueue-activerecord && gem push riverqueue-activerecord-${"${VERSION}"/v/}.gem && popd
+    pushd driver/riverqueue-sequel && gem push riverqueue-sequel-${"${VERSION}"/v/}.gem && popd
 
     git tag $VERSION
     git push --tags
