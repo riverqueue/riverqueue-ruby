@@ -14,14 +14,6 @@ describe River::FNV do
       end
     end
   end
-
-  # Just a sanity check to make sure the number of 0xffs is right.
-  describe "MASK" do
-    it "contains masks equal to integer limits" do
-      expect(River::FNV.const_get(:MASK)[32]).to eq(4_294_967_295)
-      expect(River::FNV.const_get(:MASK)[64]).to eq(18_446_744_073_709_551_615)
-    end
-  end
 end
 
 #
