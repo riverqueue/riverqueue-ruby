@@ -9,7 +9,8 @@ env:
   BIN_PATH: /home/runner/bin
 
   # A suitable URL for a test database.
-  TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/riverqueue_ruby_test?sslmode=disable
+  TEST_DATABASE_NAME: river_test
+  TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/river_test?sslmode=disable
 
 on:
   - push
@@ -120,8 +121,8 @@ jobs:
           ruby-version: "head"
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
 
-      # There is a version of Go on Actions' base image, but it's old and can't
-      # read modern `go.mod` annotations correctly.
+      # Needed for River's CLI. There is a version of Go on Actions' base image,
+      # but it's old and can't read modern `go.mod` annotations correctly.
       - name: Install Go
         uses: actions/setup-go@v5
         with:
@@ -129,7 +130,7 @@ jobs:
           check-latest: true
 
       - name: Create database
-        run: psql --echo-errors --quiet -c '\timing off' -c "CREATE DATABASE riverqueue_ruby_test;" ${ADMIN_DATABASE_URL}
+        run: psql --echo-errors --quiet -c '\timing off' -c "CREATE DATABASE ${TEST_DATABASE_NAME};" ${ADMIN_DATABASE_URL}
 
       - name: Install River CLI
         run: go install github.com/riverqueue/river/cmd/river@latest
