@@ -14,8 +14,11 @@ gem "riverqueue-sequel"
 Initialize a client with:
 
 ```ruby
+require "riverqueue"
+require "riverqueue-activerecord"
+
 DB = Sequel.connect("postgres://...")
-client = River::Client.new(River::Driver::Sequel.new(DB))
+client = River::Client.new(River::Driver::ActiveRecord.new)
 ```
 
 Define a job and insert it:
