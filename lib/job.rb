@@ -55,15 +55,15 @@ module River
     # The set of worker IDs that have worked this job. A worker ID differs
     # between different programs, but is shared by all executors within any
     # given one.  (i.e. Different Go processes have different IDs, but IDs are
-    # shared within any given process.) A process generates a new ULID (an
-    # ordered UUID) worker ID when it starts up.
+    # shared within any given process.) A process generates a new ID based on
+    # host and current time when it starts up.
     attr_accessor :attempted_by
 
     # When the job record was created.
     attr_accessor :created_at
 
     # A set of errors that occurred when the job was worked, one for each
-    # attempt.  Ordered from earliest error to the latest error.
+    # attempt. Ordered from earliest error to the latest error.
     attr_accessor :errors
 
     # The time at which the job was "finalized", meaning it was either completed
@@ -78,6 +78,9 @@ module River
     # The maximum number of attempts that the job will be tried before it errors
     # for the last time and will no longer be worked.
     attr_accessor :max_attempts
+
+    # Arbitrary metadata associated with the job.
+    attr_accessor :metadata
 
     # The priority of the job, with 1 being the highest priority and 4 being the
     # lowest. When fetching available jobs to work, the highest priority jobs
@@ -112,6 +115,7 @@ module River
       created_at:,
       kind:,
       max_attempts:,
+      metadata:,
       priority:,
       queue:,
       scheduled_at:,
@@ -134,6 +138,7 @@ module River
       self.finalized_at = finalized_at
       self.kind = kind
       self.max_attempts = max_attempts
+      self.metadata = metadata
       self.priority = priority
       self.queue = queue
       self.scheduled_at = scheduled_at
@@ -157,7 +162,7 @@ module River
     attr_accessor :error
 
     # Contains a stack trace from a job that panicked. The trace is produced by
-    # invoking `debug.Trace()`.
+    # invoking `debug.Trace()` in Go.
     attr_accessor :trace
 
     def initialize(

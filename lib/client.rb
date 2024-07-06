@@ -2,8 +2,13 @@ require "fnv"
 require "time"
 
 module River
+  # Default number of maximum attempts for a job.
   MAX_ATTEMPTS_DEFAULT = 25
+
+  # Default priority for a job.
   PRIORITY_DEFAULT = 1
+
+  # Default queue for a job.
   QUEUE_DEFAULT = "default"
 
   # Provides a client for River that inserts jobs. Unlike the Go version of the
@@ -241,7 +246,7 @@ module River
           queue: insert_opts.queue || args_insert_opts.queue || QUEUE_DEFAULT,
           scheduled_at: scheduled_at&.utc, # database defaults to now
           state: scheduled_at ? JOB_STATE_SCHEDULED : JOB_STATE_AVAILABLE,
-          tags: insert_opts.tags || args_insert_opts.tags
+          tags: validate_tags(insert_opts.tags || args_insert_opts.tags)
         ),
         unique_opts
       ]
@@ -259,6 +264,16 @@ module River
     # bounded within int64. Allows overflow.
     private def uint64_to_int64(int)
       [int].pack("Q").unpack1("q") #: Integer # rubocop:disable Layout/LeadingCommentSpace
+    end
+
+    TAG_RE = /\A[\w][\w\-]+[\w]\z/
+    private_constant :TAG_RE
+
+    private def validate_tags(tags)
+      tags&.each do |tag|
+        raise ArgumentError, "tags should be 255 characters or less" if tag.length > 255
+        raise ArgumentError, "tag should match regex #{TAG_RE.inspect}" unless TAG_RE.match(tag)
+      end
     end
   end
 
