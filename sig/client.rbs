@@ -16,9 +16,13 @@ module River
     def insert_many: (Array[jobArgs | InsertManyParams]) -> Integer
 
     private def check_unique_job: (Driver::JobInsertParams, UniqueOpts?) { () -> InsertResult } -> InsertResult
-    private def uint64_to_int64: (Integer) -> Integer
     private def make_insert_params: (jobArgs, InsertOpts, ?is_insert_many: bool) -> [Driver::JobInsertParams, UniqueOpts?]
     private def truncate_time: (Time, Integer) -> Time
+    private def uint64_to_int64: (Integer) -> Integer
+
+    TAG_RE: Regexp
+
+    private def validate_tags: (Array[String]?) -> Array[String]?
   end
 
   class InsertManyParams

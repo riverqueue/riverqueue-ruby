@@ -86,6 +86,7 @@ module River::Driver
         finalized_at: river_job.finalized_at,
         kind: river_job.kind,
         max_attempts: river_job.max_attempts,
+        metadata: river_job.metadata,
         priority: river_job.priority,
         queue: river_job.queue,
         scheduled_at: river_job.scheduled_at,

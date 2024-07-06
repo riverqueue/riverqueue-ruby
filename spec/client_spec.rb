@@ -51,6 +51,7 @@ class MockDriver
       finalized_at: nil,
       kind: insert_params.kind,
       max_attempts: insert_params.max_attempts,
+      metadata: nil,
       priority: insert_params.priority,
       queue: insert_params.queue,
       scheduled_at: insert_params.scheduled_at || Time.now, # normally defaults from DB
@@ -192,6 +193,22 @@ RSpec.describe River::Client do
       expect do
         client.insert(args_klass.new)
       end.to raise_error(RuntimeError, "args should return non-nil from `#to_json`")
+    end
+
+    it "raises error if tags are too long" do
+      expect do
+        client.insert(SimpleArgs.new(job_num: 1), insert_opts: River::InsertOpts.new(
+          tags: ["a" * 256]
+        ))
+      end.to raise_error(ArgumentError, "tags should be 255 characters or less")
+    end
+
+    it "raises error if tags are misformatted" do
+      expect do
+        client.insert(SimpleArgs.new(job_num: 1), insert_opts: River::InsertOpts.new(
+          tags: ["no,commas,allowed"]
+        ))
+      end.to raise_error(ArgumentError, 'tag should match regex /\A[\w][\w\-]+[\w]\z/')
     end
 
     def check_bigint_bounds(int)
