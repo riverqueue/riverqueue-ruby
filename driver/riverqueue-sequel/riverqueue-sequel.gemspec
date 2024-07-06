@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = "riverqueue-sequel"
-  s.version = "0.4.0"
+  s.version = "0.5.0"
   s.summary = "Sequel driver for the River Ruby gem."
   s.description = "Sequel driver for the River Ruby gem. Use in conjunction with the riverqueue gem to insert jobs that are worked in Go."
   s.authors = ["Blake Gentry", "Brandur Leach"]

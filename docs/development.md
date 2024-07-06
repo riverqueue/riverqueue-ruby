@@ -50,7 +50,7 @@ $ open coverage/index.html
 
     ```shell
     git checkout master && git pull --rebase
-    export VERSION=v0.0.x
+    export VERSION=v0.x.0
 
     ruby scripts/update_gemspec_version.rb riverqueue.gemspec
     ruby scripts/update_gemspec_version.rb driver/riverqueue-activerecord/riverqueue-activerecord.gemspec
