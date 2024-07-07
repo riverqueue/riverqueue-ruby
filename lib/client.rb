@@ -26,7 +26,7 @@ module River
   class Client
     def initialize(driver, advisory_lock_prefix: nil)
       @driver = driver
-      @advisory_lock_prefix = advisory_lock_prefix
+      @advisory_lock_prefix = check_advisory_lock_prefix_bounds(advisory_lock_prefix)
       @time_now_utc = -> { Time.now.utc } # for test time stubbing
     end
 
@@ -135,6 +135,16 @@ module River
       end
 
       @driver.job_insert_many(all_params)
+    end
+
+    private def check_advisory_lock_prefix_bounds(advisory_lock_prefix)
+      return nil if advisory_lock_prefix.nil?
+
+      # 2**32-1 is 0xffffffff (the largest number that's four bytes)
+      if advisory_lock_prefix < 0 || advisory_lock_prefix > 2**32 - 1
+        raise ArgumentError, "advisory lock prefix must fit inside four bytes"
+      end
+      advisory_lock_prefix
     end
 
     # Default states that are used during a unique insert. Can be overridden by

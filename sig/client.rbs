@@ -8,12 +8,14 @@ module River
     @driver: _Driver
     @time_now_utc: ^() -> Time
 
-    DEFAULT_UNIQUE_STATES: Array[jobStateAll]
-    EMPTY_INSERT_OPTS: InsertOpts
-
     def initialize: (_Driver driver, ?advisory_lock_prefix: Integer?) -> void
     def insert: (jobArgs, ?insert_opts: InsertOpts) -> InsertResult
     def insert_many: (Array[jobArgs | InsertManyParams]) -> Integer
+
+    private def check_advisory_lock_prefix_bounds: (Integer?) -> Integer?
+
+    DEFAULT_UNIQUE_STATES: Array[jobStateAll]
+    EMPTY_INSERT_OPTS: InsertOpts
 
     private def check_unique_job: (Driver::JobInsertParams, UniqueOpts?) { () -> InsertResult } -> InsertResult
     private def make_insert_params: (jobArgs, InsertOpts, ?is_insert_many: bool) -> [Driver::JobInsertParams, UniqueOpts?]
