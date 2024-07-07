@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    riverqueue (0.5.0)
+    riverqueue (0.6.0)
 
 GEM
   remote: https://rubygems.org/
