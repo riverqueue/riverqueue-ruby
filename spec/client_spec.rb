@@ -173,6 +173,22 @@ RSpec.describe River::Client do
       )
     end
 
+    it "errors if advisory lock prefix is larger than four bytes" do
+      River::Client.new(mock_driver, advisory_lock_prefix: 123)
+
+      expect do
+        River::Client.new(mock_driver, advisory_lock_prefix: -1)
+      end.to raise_error(ArgumentError, "advisory lock prefix must fit inside four bytes")
+
+      # 2^32-1 is 0xffffffff (1s for 32 bits) which fits
+      River::Client.new(mock_driver, advisory_lock_prefix: 2**32 - 1)
+
+      # 2^32 is 0x100000000, which does not
+      expect do
+        River::Client.new(mock_driver, advisory_lock_prefix: 2**32)
+      end.to raise_error(ArgumentError, "advisory lock prefix must fit inside four bytes")
+    end
+
     it "errors if args don't respond to #kind" do
       args_klass = Class.new do
         def to_json = {}
