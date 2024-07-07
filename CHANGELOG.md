@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2024-07-06
+
 - Advisory lock prefixes are now checked to make sure they fit inside of four bytes. [PR #24](https://github.com/riverqueue/riverqueue-ruby/pull/24).
 
 ## [0.5.0] - 2024-07-05
