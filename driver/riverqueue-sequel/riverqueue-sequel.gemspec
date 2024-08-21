@@ -5,7 +5,7 @@ Gem::Specification.new do |s|
   s.description = "Sequel driver for the River Ruby gem. Use in conjunction with the riverqueue gem to insert jobs that are worked in Go."
   s.authors = ["Blake Gentry", "Brandur Leach"]
   s.email = "brandur@brandur.org"
-  s.files = ["lib/riverqueue-sequel.rb"]
+  s.files = Dir.glob("lib/**/*")
   s.homepage = "https://riverqueue.com"
   s.license = "LGPL-3.0-or-later"
 
