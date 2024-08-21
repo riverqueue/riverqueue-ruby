@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2024-08-21
+
+### Fixed
+
+- Fix source files not being correctly included in built Ruby gems. [PR #26](https://github.com/riverqueue/riverqueue-ruby/pull/26).
+
 ## [0.6.0] - 2024-07-06
 
 ### Changed
