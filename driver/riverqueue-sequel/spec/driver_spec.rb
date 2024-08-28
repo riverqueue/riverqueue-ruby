@@ -1,23 +1,5 @@
 require "spec_helper"
-
-class SimpleArgs
-  attr_accessor :job_num
-
-  def initialize(job_num:)
-    self.job_num = job_num
-  end
-
-  def kind = "simple"
-
-  def to_json = JSON.dump({job_num: job_num})
-end
-
-# Lets us test job-specific insertion opts by making `#insert_opts` an accessor.
-# Real args that make use of this functionality will probably want to make
-# `#insert_opts` a non-accessor method instead.
-class SimpleArgsWithInsertOpts < SimpleArgs
-  attr_accessor :insert_opts
-end
+require_relative "../../../spec/driver_shared_examples"
 
 RSpec.describe River::Driver::Sequel do
   around(:each) { |ex| test_transaction(&ex) }
@@ -25,356 +7,45 @@ RSpec.describe River::Driver::Sequel do
   let!(:driver) { River::Driver::Sequel.new(DB) }
   let(:client) { River::Client.new(driver) }
 
-  describe "unique insertion" do
-    it "inserts a unique job once" do
-      args = SimpleArgsWithInsertOpts.new(job_num: 1)
-      args.insert_opts = River::InsertOpts.new(
-        unique_opts: River::UniqueOpts.new(
-          by_queue: true
-        )
-      )
-
-      insert_res = client.insert(args)
-      expect(insert_res.job).to_not be_nil
-      expect(insert_res.unique_skipped_as_duplicated).to be false
-      original_job = insert_res.job
-
-      insert_res = client.insert(args)
-      expect(insert_res.job.id).to eq(original_job.id)
-      expect(insert_res.unique_skipped_as_duplicated).to be true
-    end
-
-    it "inserts a unique job with an advisory lock prefix" do
-      client = River::Client.new(driver, advisory_lock_prefix: 123456)
-
-      args = SimpleArgsWithInsertOpts.new(job_num: 1)
-      args.insert_opts = River::InsertOpts.new(
-        unique_opts: River::UniqueOpts.new(
-          by_queue: true
-        )
-      )
-
-      insert_res = client.insert(args)
-      expect(insert_res.job).to_not be_nil
-      expect(insert_res.unique_skipped_as_duplicated).to be false
-      original_job = insert_res.job
-
-      insert_res = client.insert(args)
-      expect(insert_res.job.id).to eq(original_job.id)
-      expect(insert_res.unique_skipped_as_duplicated).to be true
-    end
-  end
-
-  describe "#advisory_lock" do
-    it "takes an advisory lock" do
-      driver.transaction do
-        driver.advisory_lock(123)
-
-        Thread.new do
-          expect(DB.fetch("SELECT pg_try_advisory_xact_lock(?)", 123).first[:pg_try_advisory_xact_lock]).to be false
-        end.join
-      end
-    end
-  end
-
-  describe "#job_get_by_kind_and_unique_properties" do
-    let(:job_args) { SimpleArgs.new(job_num: 1) }
-
-    it "gets a job by kind" do
-      insert_res = client.insert(job_args)
-
-      job = driver.send(
-        :to_job_row,
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind
-        ))
-      )
-      expect(job.id).to eq(insert_res.job.id)
-
-      expect(
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: "does_not_exist"
-        ))
-      ).to be_nil
-    end
-
-    it "gets a job by created at period" do
-      insert_res = client.insert(job_args)
-
-      job = driver.send(
-        :to_job_row,
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          created_at: [insert_res.job.created_at - 1, insert_res.job.created_at + 1]
-        ))
-      )
-      expect(job.id).to eq(insert_res.job.id)
-
-      expect(
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          created_at: [insert_res.job.created_at + 1, insert_res.job.created_at + 3]
-        ))
-      ).to be_nil
-    end
-
-    it "gets a job by encoded args" do
-      insert_res = client.insert(job_args)
-
-      job = driver.send(
-        :to_job_row,
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          encoded_args: JSON.dump(insert_res.job.args)
-        ))
-      )
-      expect(job.id).to eq(insert_res.job.id)
-
-      expect(
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          encoded_args: JSON.dump({"job_num" => 2})
-        ))
-      ).to be_nil
-    end
-
-    it "gets a job by queue" do
-      insert_res = client.insert(job_args)
-
-      job = driver.send(
-        :to_job_row,
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          queue: insert_res.job.queue
-        ))
-      )
-      expect(job.id).to eq(insert_res.job.id)
-
-      expect(
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          queue: "other_queue"
-        ))
-      ).to be_nil
-    end
-
-    it "gets a job by state" do
-      insert_res = client.insert(job_args)
-
-      job = driver.send(
-        :to_job_row,
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_COMPLETED]
-        ))
-      )
-      expect(job.id).to eq(insert_res.job.id)
-
-      expect(
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          state: [River::JOB_STATE_RUNNING, River::JOB_STATE_SCHEDULED]
-        ))
-      ).to be_nil
-    end
-  end
-
-  describe "#job_insert" do
-    it "inserts a job" do
-      insert_res = client.insert(SimpleArgs.new(job_num: 1))
-      expect(insert_res.job).to have_attributes(
-        attempt: 0,
-        args: {"job_num" => 1},
-        created_at: be_within(2).of(Time.now.utc),
-        kind: "simple",
-        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
-        queue: River::QUEUE_DEFAULT,
-        priority: River::PRIORITY_DEFAULT,
-        scheduled_at: be_within(2).of(Time.now.utc),
-        state: River::JOB_STATE_AVAILABLE,
-        tags: ::Sequel.pg_array([])
-      )
-
-      # Make sure it made it to the database. Assert only minimally since we're
-      # certain it's the same as what we checked above.
-      river_job = River::Driver::Sequel::RiverJob.first(id: insert_res.job.id)
-      expect(river_job).to have_attributes(
-        kind: "simple"
-      )
-    end
-
-    it "schedules a job" do
-      target_time = Time.now.utc + 1 * 3600
-
-      insert_res = client.insert(
-        SimpleArgs.new(job_num: 1),
-        insert_opts: River::InsertOpts.new(scheduled_at: target_time)
-      )
-      expect(insert_res.job).to have_attributes(
-        scheduled_at: be_within(2).of(target_time),
-        state: River::JOB_STATE_SCHEDULED
-      )
-    end
-
-    it "inserts with job insert opts" do
-      args = SimpleArgsWithInsertOpts.new(job_num: 1)
-      args.insert_opts = River::InsertOpts.new(
-        max_attempts: 23,
-        priority: 2,
-        queue: "job_custom_queue",
-        tags: ["job_custom"]
-      )
-
-      insert_res = client.insert(args)
-      expect(insert_res.job).to have_attributes(
-        max_attempts: 23,
-        priority: 2,
-        queue: "job_custom_queue",
-        tags: ["job_custom"]
-      )
-    end
-
-    it "inserts with insert opts" do
-      # We set job insert opts in this spec too so that we can verify that the
-      # options passed at insertion time take precedence.
-      args = SimpleArgsWithInsertOpts.new(job_num: 1)
-      args.insert_opts = River::InsertOpts.new(
-        max_attempts: 23,
-        priority: 2,
-        queue: "job_custom_queue",
-        tags: ["job_custom"]
-      )
-
-      insert_res = client.insert(args, insert_opts: River::InsertOpts.new(
-        max_attempts: 17,
-        priority: 3,
-        queue: "my_queue",
-        tags: ["custom"]
-      ))
-      expect(insert_res.job).to have_attributes(
-        max_attempts: 17,
-        priority: 3,
-        queue: "my_queue",
-        tags: ["custom"]
-      )
-    end
-
-    it "inserts with job args hash" do
-      insert_res = client.insert(River::JobArgsHash.new("hash_kind", {
-        job_num: 1
-      }))
-      expect(insert_res.job).to have_attributes(
-        args: {"job_num" => 1},
-        kind: "hash_kind"
-      )
-    end
-
-    it "inserts in a transaction" do
-      insert_res = nil
-
-      DB.transaction(savepoint: true) do
-        insert_res = client.insert(SimpleArgs.new(job_num: 1))
-
-        river_job = River::Driver::Sequel::RiverJob.first(id: insert_res.job.id)
-        expect(river_job).to_not be_nil
-
-        raise Sequel::Rollback
-      end
-
-      # Not present because the job was rolled back.
-      river_job = River::Driver::Sequel::RiverJob.first(id: insert_res.job.id)
-      expect(river_job).to be_nil
-    end
-  end
-
-  describe "#job_insert_many" do
-    it "inserts multiple jobs" do
-      num_inserted = client.insert_many([
-        SimpleArgs.new(job_num: 1),
-        SimpleArgs.new(job_num: 2)
-      ])
-      expect(num_inserted).to eq(2)
-
-      job1 = driver.send(:to_job_row, River::Driver::Sequel::RiverJob.first)
-      expect(job1).to have_attributes(
-        attempt: 0,
-        args: {"job_num" => 1},
-        created_at: be_within(2).of(Time.now.utc),
-        kind: "simple",
-        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
-        queue: River::QUEUE_DEFAULT,
-        priority: River::PRIORITY_DEFAULT,
-        scheduled_at: be_within(2).of(Time.now.utc),
-        state: River::JOB_STATE_AVAILABLE,
-        tags: ::Sequel.pg_array([])
-      )
-
-      job2 = driver.send(:to_job_row, River::Driver::Sequel::RiverJob.limit(nil, 1).first)
-      expect(job2).to have_attributes(
-        attempt: 0,
-        args: {"job_num" => 2},
-        created_at: be_within(2).of(Time.now.utc),
-        kind: "simple",
-        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
-        queue: River::QUEUE_DEFAULT,
-        priority: River::PRIORITY_DEFAULT,
-        scheduled_at: be_within(2).of(Time.now.utc),
-        state: River::JOB_STATE_AVAILABLE,
-        tags: ::Sequel.pg_array([])
-      )
-    end
-
-    it "inserts multiple jobs in a transaction" do
-      job1 = nil
-      job2 = nil
-
-      DB.transaction(savepoint: true) do
-        num_inserted = client.insert_many([
-          SimpleArgs.new(job_num: 1),
-          SimpleArgs.new(job_num: 2)
-        ])
-        expect(num_inserted).to eq(2)
-
-        job1 = driver.send(:to_job_row, River::Driver::Sequel::RiverJob.first)
-        job2 = driver.send(:to_job_row, River::Driver::Sequel::RiverJob.limit(nil, 1).first)
-
-        raise Sequel::Rollback
-      end
-
-      # Not present because the jobs were rolled back.
-      river_job1 = River::Driver::Sequel::RiverJob.first(id: job1.id)
-      expect(river_job1).to be_nil
-      river_job2 = River::Driver::Sequel::RiverJob.first(id: job2.id)
-      expect(river_job2).to be_nil
-    end
-  end
-
-  describe "#transaction" do
-    it "runs block in a transaction" do
-      insert_res = nil
-
-      driver.transaction do
-        insert_res = client.insert(SimpleArgs.new(job_num: 1))
-
-        river_job = River::Driver::Sequel::RiverJob.first(id: insert_res.job.id)
-        expect(river_job).to_not be_nil
-
-        raise Sequel::Rollback
-      end
-
-      # Not present because the job was rolled back.
-      river_job = River::Driver::Sequel::RiverJob.first(id: insert_res.job.id)
-      expect(river_job).to be_nil
-    end
-  end
+  it_behaves_like "driver shared examples"
 
   describe "#to_job_row" do
-    it "converts a database record to `River::JobRow`" do
-      now = Time.now.utc
-      river_job = River::Driver::Sequel::RiverJob.new(
+    it "converts a database record to `River::JobRow` with minimal properties" do
+      river_job = DB[:river_job].returning.insert_select({
+        id: 1,
+        args: %({"job_num":1}),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT
+      })
+
+      job_row = driver.send(:to_job_row, river_job)
+
+      expect(job_row).to be_an_instance_of(River::JobRow)
+      expect(job_row).to have_attributes(
+        id: 1,
+        args: {"job_num" => 1},
+        attempt: 0,
+        attempted_at: nil,
+        attempted_by: nil,
+        created_at: be_within(2).of(Time.now.getutc),
+        finalized_at: nil,
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        scheduled_at: be_within(2).of(Time.now.getutc),
+        state: River::JOB_STATE_AVAILABLE,
+        tags: []
+      )
+    end
+
+    it "converts a database record to `River::JobRow` with all properties" do
+      now = Time.now
+      river_job = DB[:river_job].returning.insert_select({
+        id: 1,
         attempt: 1,
         attempted_at: now,
-        attempted_by: ["client1"],
+        attempted_by: ::Sequel.pg_array(["client1"]),
         created_at: now,
         args: %({"job_num":1}),
         finalized_at: now,
@@ -384,9 +55,9 @@ RSpec.describe River::Driver::Sequel do
         queue: River::QUEUE_DEFAULT,
         scheduled_at: now,
         state: River::JOB_STATE_COMPLETED,
-        tags: ["tag1"]
-      )
-      river_job.id = 1
+        tags: ::Sequel.pg_array(["tag1"]),
+        unique_key: ::Sequel.blob(Digest::SHA256.digest("unique_key_str"))
+      })
 
       job_row = driver.send(:to_job_row, river_job)
 
@@ -395,32 +66,37 @@ RSpec.describe River::Driver::Sequel do
         id: 1,
         args: {"job_num" => 1},
         attempt: 1,
-        attempted_at: now,
+        attempted_at: be_within(2).of(now.getutc),
         attempted_by: ["client1"],
-        created_at: now,
-        finalized_at: now,
+        created_at: be_within(2).of(now.getutc),
+        finalized_at: be_within(2).of(now.getutc),
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT,
         priority: River::PRIORITY_DEFAULT,
         queue: River::QUEUE_DEFAULT,
-        scheduled_at: now,
+        scheduled_at: be_within(2).of(now.getutc),
         state: River::JOB_STATE_COMPLETED,
-        tags: ["tag1"]
+        tags: ["tag1"],
+        unique_key: Digest::SHA256.digest("unique_key_str")
       )
     end
 
     it "with errors" do
       now = Time.now.utc
-      river_job = River::Driver::Sequel::RiverJob.new(
-        errors: [JSON.dump(
-          {
+      river_job = DB[:river_job].returning.insert_select({
+        args: %({"job_num":1}),
+        errors: ::Sequel.pg_array([
+          ::Sequel.pg_json_wrap({
             at: now,
             attempt: 1,
             error: "job failure",
             trace: "error trace"
-          }
-        )]
-      )
+          })
+        ]),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        state: River::JOB_STATE_AVAILABLE
+      })
 
       job_row = driver.send(:to_job_row, river_job)
 

@@ -3,6 +3,7 @@ D = Steep::Diagnostic
 target :lib do
   check "lib"
 
+  library "digest"
   library "json"
   library "time"
 

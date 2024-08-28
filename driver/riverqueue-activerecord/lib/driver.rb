@@ -33,6 +33,16 @@ module River::Driver
 
     def advisory_lock(key)
       ::ActiveRecord::Base.connection.execute("SELECT pg_advisory_xact_lock(#{key})")
+      nil
+    end
+
+    def advisory_lock_try(key)
+      ::ActiveRecord::Base.connection.execute("SELECT pg_try_advisory_xact_lock(123)").first["pg_try_advisory_xact_lock"]
+    end
+
+    def job_get_by_id(id)
+      data_set = RiverJob.where(id: id)
+      data_set.first ? to_job_row_from_model(data_set.first) : nil
     end
 
     def job_get_by_kind_and_unique_properties(get_params)
@@ -41,16 +51,42 @@ module River::Driver
       data_set = data_set.where(args: get_params.encoded_args) if get_params.encoded_args
       data_set = data_set.where(queue: get_params.queue) if get_params.queue
       data_set = data_set.where(state: get_params.state) if get_params.state
-      data_set.take
+      data_set.first ? to_job_row_from_model(data_set.first) : nil
     end
 
     def job_insert(insert_params)
-      to_job_row(RiverJob.create(insert_params_to_hash(insert_params)))
+      to_job_row_from_model(RiverJob.create(insert_params_to_hash(insert_params)))
+    end
+
+    def job_insert_unique(insert_params, unique_key)
+      res = RiverJob.upsert(
+        insert_params_to_hash(insert_params).merge(unique_key: unique_key),
+        on_duplicate: Arel.sql("kind = EXCLUDED.kind"),
+        returning: Arel.sql("*, (xmax != 0) AS unique_skipped_as_duplicate"),
+
+        # It'd be nice to specify this as `(kind, unique_key) WHERE unique_key
+        # IS NOT NULL` like we do elsewhere, but in its pure ingenuity, fucking
+        # ActiveRecord tries to look up a unique index instead of letting
+        # Postgres handle that, and of course it doesn't support a `WHERE`
+        # clause. The workaround is to target the index name instead of columns.
+        unique_by: "river_job_kind_unique_key_idx"
+      )
+
+      [to_job_row_from_raw(res), res.send(:hash_rows)[0]["unique_skipped_as_duplicate"]]
     end
 
     def job_insert_many(insert_params_many)
       RiverJob.insert_all(insert_params_many.map { |p| insert_params_to_hash(p) })
       insert_params_many.count
+    end
+
+    def job_list
+      data_set = RiverJob.order(:id)
+      data_set.all.map { |job| to_job_row_from_model(job) }
+    end
+
+    def rollback_exception
+      ::ActiveRecord::Rollback
     end
 
     def transaction(&)
@@ -72,21 +108,18 @@ module River::Driver
       }.compact
     end
 
-    # Type type injected to this method is not a `RiverJob`, but rather a raw
-    # hash with stringified keys because we're inserting with the Arel framework
-    # directly rather than generating a record from a model.
-    private def to_job_row(river_job)
+    private def to_job_row_from_model(river_job)
       # needs to be accessed through values because `errors` is shadowed by both
       # ActiveRecord and the patch above
       errors = river_job.attributes["errors"]
 
       River::JobRow.new(
         id: river_job.id,
-        args: river_job.args ? JSON.parse(river_job.args) : nil,
+        args: JSON.parse(river_job.args),
         attempt: river_job.attempt,
-        attempted_at: river_job.attempted_at,
+        attempted_at: river_job.attempted_at&.getutc,
         attempted_by: river_job.attempted_by,
-        created_at: river_job.created_at,
+        created_at: river_job.created_at.getutc,
         errors: errors&.map { |e|
           deserialized_error = JSON.parse(e, symbolize_names: true)
 
@@ -97,15 +130,59 @@ module River::Driver
             trace: deserialized_error[:trace]
           )
         },
-        finalized_at: river_job.finalized_at,
+        finalized_at: river_job.finalized_at&.getutc,
         kind: river_job.kind,
         max_attempts: river_job.max_attempts,
         metadata: river_job.metadata,
         priority: river_job.priority,
         queue: river_job.queue,
-        scheduled_at: river_job.scheduled_at,
+        scheduled_at: river_job.scheduled_at.getutc,
         state: river_job.state,
-        tags: river_job.tags
+        tags: river_job.tags,
+        unique_key: river_job.unique_key
+      )
+    end
+
+    # This is really awful, but some of ActiveRecord's methods (e.g. `.create`)
+    # return a model, and others (e.g. `.upsert`) return raw values, and
+    # therefore this second version from unmarshaling a job row exists. I
+    # searched long and hard for a way to have the former type of method return
+    # raw or the latter type of method return a model, but was unable to find
+    # anything.
+    private def to_job_row_from_raw(res)
+      river_job = {}
+
+      res.rows[0].each_with_index do |val, i|
+        river_job[res.columns[i]] = res.column_types[i].deserialize(val)
+      end
+
+      River::JobRow.new(
+        id: river_job["id"],
+        args: JSON.parse(river_job["args"]),
+        attempt: river_job["attempt"],
+        attempted_at: river_job["attempted_at"]&.getutc,
+        attempted_by: river_job["attempted_by"],
+        created_at: river_job["created_at"].getutc,
+        errors: river_job["errors"]&.map { |e|
+          deserialized_error = JSON.parse(e)
+
+          River::AttemptError.new(
+            at: Time.parse(deserialized_error["at"]),
+            attempt: deserialized_error["attempt"],
+            error: deserialized_error["error"],
+            trace: deserialized_error["trace"]
+          )
+        },
+        finalized_at: river_job["finalized_at"]&.getutc,
+        kind: river_job["kind"],
+        max_attempts: river_job["max_attempts"],
+        metadata: river_job["metadata"],
+        priority: river_job["priority"],
+        queue: river_job["queue"],
+        scheduled_at: river_job["scheduled_at"].getutc,
+        state: river_job["state"],
+        tags: river_job["tags"],
+        unique_key: river_job["unique_key"]
       )
     end
   end
