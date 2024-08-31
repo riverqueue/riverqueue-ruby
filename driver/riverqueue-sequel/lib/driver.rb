@@ -9,38 +9,64 @@ module River::Driver
   class Sequel
     def initialize(db)
       @db = db
-
-      # It's Ruby, so we can only define a model after Sequel's established a
-      # connection because it's all dynamic.
-      if !River::Driver::Sequel.const_defined?(:RiverJob)
-        River::Driver::Sequel.const_set(:RiverJob, Class.new(::Sequel::Model(:river_job)))
-
-        # Since we only define our model once, take advantage of knowing this is
-        # our first initialization to add required extensions.
-        db.extension(:pg_array)
-      end
+      @db.extension(:pg_array)
+      @db.extension(:pg_json)
     end
 
     def advisory_lock(key)
       @db.fetch("SELECT pg_advisory_xact_lock(?)", key).first
+      nil
+    end
+
+    def advisory_lock_try(key)
+      @db.fetch("SELECT pg_try_advisory_xact_lock(?)", key).first[:pg_try_advisory_xact_lock]
+    end
+
+    def job_get_by_id(id)
+      data_set = @db[:river_job].where(id: id)
+      data_set.first ? to_job_row(data_set.first) : nil
     end
 
     def job_get_by_kind_and_unique_properties(get_params)
-      data_set = RiverJob.where(kind: get_params.kind)
+      data_set = @db[:river_job].where(kind: get_params.kind)
       data_set = data_set.where(::Sequel.lit("tstzrange(?, ?, '[)') @> created_at", get_params.created_at[0], get_params.created_at[1])) if get_params.created_at
       data_set = data_set.where(args: get_params.encoded_args) if get_params.encoded_args
       data_set = data_set.where(queue: get_params.queue) if get_params.queue
       data_set = data_set.where(state: get_params.state) if get_params.state
-      data_set.first
+      data_set.first ? to_job_row(data_set.first) : nil
     end
 
     def job_insert(insert_params)
-      to_job_row(RiverJob.create(insert_params_to_hash(insert_params)))
+      to_job_row(@db[:river_job].returning.insert_select(insert_params_to_hash(insert_params)))
+    end
+
+    def job_insert_unique(insert_params, unique_key)
+      values = @db[:river_job]
+        .insert_conflict(
+          target: [:kind, :unique_key],
+          conflict_where: ::Sequel.lit("unique_key IS NOT NULL"),
+          update: {kind: ::Sequel[:excluded][:kind]}
+        )
+        .returning(::Sequel.lit("*, (xmax != 0) AS unique_skipped_as_duplicate"))
+        .insert_select(
+          insert_params_to_hash(insert_params).merge(unique_key: ::Sequel.blob(unique_key))
+        )
+
+      [to_job_row(values), values[:unique_skipped_as_duplicate]]
     end
 
     def job_insert_many(insert_params_many)
-      RiverJob.multi_insert(insert_params_many.map { |p| insert_params_to_hash(p) })
+      @db[:river_job].multi_insert(insert_params_many.map { |p| insert_params_to_hash(p) })
       insert_params_many.count
+    end
+
+    def job_list
+      data_set = @db[:river_job].order_by(:id)
+      data_set.all.map { |job| to_job_row(job) }
+    end
+
+    def rollback_exception
+      ::Sequel::Rollback
     end
 
     def transaction(&)
@@ -63,35 +89,31 @@ module River::Driver
     end
 
     private def to_job_row(river_job)
-      # needs to be accessed through values because Sequel shadows `errors`
-      errors = river_job.values[:errors]
-
       River::JobRow.new(
-        id: river_job.id,
-        args: river_job.args ? JSON.parse(river_job.args) : nil,
-        attempt: river_job.attempt,
-        attempted_at: river_job.attempted_at,
-        attempted_by: river_job.attempted_by,
-        created_at: river_job.created_at,
-        errors: errors&.map { |e|
-          deserialized_error = JSON.parse(e, symbolize_names: true)
-
+        id: river_job[:id],
+        args: river_job[:args].to_h,
+        attempt: river_job[:attempt],
+        attempted_at: river_job[:attempted_at]&.getutc,
+        attempted_by: river_job[:attempted_by],
+        created_at: river_job[:created_at].getutc,
+        errors: river_job[:errors]&.map { |deserialized_error|
           River::AttemptError.new(
-            at: Time.parse(deserialized_error[:at]),
-            attempt: deserialized_error[:attempt],
-            error: deserialized_error[:error],
-            trace: deserialized_error[:trace]
+            at: Time.parse(deserialized_error["at"]),
+            attempt: deserialized_error["attempt"],
+            error: deserialized_error["error"],
+            trace: deserialized_error["trace"]
           )
         },
-        finalized_at: river_job.finalized_at,
-        kind: river_job.kind,
-        max_attempts: river_job.max_attempts,
-        metadata: river_job.metadata,
-        priority: river_job.priority,
-        queue: river_job.queue,
-        scheduled_at: river_job.scheduled_at,
-        state: river_job.state,
-        tags: river_job.tags
+        finalized_at: river_job[:finalized_at]&.getutc,
+        kind: river_job[:kind],
+        max_attempts: river_job[:max_attempts],
+        metadata: river_job[:metadata],
+        priority: river_job[:priority],
+        queue: river_job[:queue],
+        scheduled_at: river_job[:scheduled_at].getutc,
+        state: river_job[:state],
+        tags: river_job[:tags].to_a,
+        unique_key: river_job[:unique_key]&.to_s
       )
     end
   end

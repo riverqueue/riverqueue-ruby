@@ -1,67 +1,5 @@
 require "spec_helper"
-
-# We use a mock here, but each driver has a more comprehensive test suite that
-# performs full integration level tests.
-class MockDriver
-  attr_accessor :advisory_lock_calls
-  attr_accessor :inserted_jobs
-  attr_accessor :job_get_by_kind_and_unique_properties_calls
-  attr_accessor :job_get_by_kind_and_unique_properties_returns
-
-  def initialize
-    @advisory_lock_calls = []
-    @inserted_jobs = []
-    @job_get_by_kind_and_unique_properties_calls = []
-    @job_get_by_kind_and_unique_properties_returns = []
-    @next_id = 0
-  end
-
-  def advisory_lock(key)
-    @advisory_lock_calls << key
-  end
-
-  def job_get_by_kind_and_unique_properties(get_params)
-    @job_get_by_kind_and_unique_properties_calls << get_params
-    job_get_by_kind_and_unique_properties_returns.shift
-  end
-
-  def job_insert(insert_params)
-    insert_params_to_jow_row(insert_params)
-  end
-
-  def job_insert_many(insert_params_many)
-    insert_params_many.each do |insert_params|
-      insert_params_to_jow_row(insert_params)
-    end
-    insert_params_many.count
-  end
-
-  def transaction(&)
-    yield
-  end
-
-  private def insert_params_to_jow_row(insert_params)
-    job = River::JobRow.new(
-      id: (@next_id += 1),
-      args: JSON.parse(insert_params.encoded_args),
-      attempt: 0,
-      attempted_by: nil,
-      created_at: Time.now,
-      errors: nil,
-      finalized_at: nil,
-      kind: insert_params.kind,
-      max_attempts: insert_params.max_attempts,
-      metadata: nil,
-      priority: insert_params.priority,
-      queue: insert_params.queue,
-      scheduled_at: insert_params.scheduled_at || Time.now, # normally defaults from DB
-      state: insert_params.state,
-      tags: insert_params.tags
-    )
-    inserted_jobs << job
-    job
-  end
-end
+require_relative "../driver/riverqueue-sequel/spec/spec_helper"
 
 class SimpleArgs
   attr_accessor :job_num
@@ -82,15 +20,23 @@ class SimpleArgsWithInsertOpts < SimpleArgs
   attr_accessor :insert_opts
 end
 
+# I originally had this top-level client test set up so that it was using a mock
+# driver, but it just turned out to be too horribly unsustainable. Adding
+# anything new required careful mock engineering, and even once done, we weren't
+# getting good guarantees that the right things were happening because it wasn't
+# end to end. We now use the real Sequel driver, with the only question being
+# whether we should maybe move all these tests into the common driver shared
+# examples so that all drivers get the full barrage.
 RSpec.describe River::Client do
-  let(:client) { River::Client.new(mock_driver) }
-  let(:mock_driver) { MockDriver.new }
+  around(:each) { |ex| test_transaction(&ex) }
+
+  let!(:driver) { River::Driver::Sequel.new(DB) }
+  let(:client) { River::Client.new(driver) }
 
   describe "#insert" do
     it "inserts a job with defaults" do
       insert_res = client.insert(SimpleArgs.new(job_num: 1))
       expect(insert_res.job).to have_attributes(
-        id: 1,
         args: {"job_num" => 1},
         attempt: 0,
         created_at: be_within(2).of(Time.now),
@@ -100,7 +46,7 @@ RSpec.describe River::Client do
         queue: River::QUEUE_DEFAULT,
         scheduled_at: be_within(2).of(Time.now),
         state: River::JOB_STATE_AVAILABLE,
-        tags: nil
+        tags: []
       )
     end
 
@@ -174,18 +120,18 @@ RSpec.describe River::Client do
     end
 
     it "errors if advisory lock prefix is larger than four bytes" do
-      River::Client.new(mock_driver, advisory_lock_prefix: 123)
+      River::Client.new(driver, advisory_lock_prefix: 123)
 
       expect do
-        River::Client.new(mock_driver, advisory_lock_prefix: -1)
+        River::Client.new(driver, advisory_lock_prefix: -1)
       end.to raise_error(ArgumentError, "advisory lock prefix must fit inside four bytes")
 
       # 2^32-1 is 0xffffffff (1s for 32 bits) which fits
-      River::Client.new(mock_driver, advisory_lock_prefix: 2**32 - 1)
+      River::Client.new(driver, advisory_lock_prefix: 2**32 - 1)
 
       # 2^32 is 0x100000000, which does not
       expect do
-        River::Client.new(mock_driver, advisory_lock_prefix: 2**32)
+        River::Client.new(driver, advisory_lock_prefix: 2**32)
       end.to raise_error(ArgumentError, "advisory lock prefix must fit inside four bytes")
     end
 
@@ -240,7 +186,16 @@ RSpec.describe River::Client do
       let(:now) { Time.now.utc }
       before { client.instance_variable_set(:@time_now_utc, -> { now }) }
 
-      it "inserts a new unique job with minimal options" do
+      let(:advisory_lock_keys) { [] }
+
+      before do
+        # required so it's properly captured by the lambda below
+        keys = advisory_lock_keys
+
+        driver.singleton_class.send(:define_method, :advisory_lock, ->(key) { keys.push(key) })
+      end
+
+      it "inserts a new unique job with minimal options on the fast path" do
         job_args = SimpleArgsWithInsertOpts.new(job_num: 1)
         job_args.insert_opts = River::InsertOpts.new(
           unique_opts: River::UniqueOpts.new(
@@ -252,13 +207,71 @@ RSpec.describe River::Client do
         expect(insert_res.job).to_not be_nil
         expect(insert_res.unique_skipped_as_duplicated).to be false
 
-        lock_str = "unique_keykind=#{job_args.kind}" \
-          "&queue=#{River::QUEUE_DEFAULT}" \
+        expect(advisory_lock_keys).to be_empty
+
+        unique_key_str = "&queue=#{River::QUEUE_DEFAULT}" \
           "&state=#{River::Client.const_get(:DEFAULT_UNIQUE_STATES).join(",")}"
-        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, River::FNV.fnv1_hash(lock_str, size: 64)))])
+        expect(insert_res.job.unique_key).to eq(Digest::SHA256.digest(unique_key_str))
+
+        insert_res = client.insert(job_args)
+        expect(insert_res.job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be true
       end
 
-      it "inserts a new unique job with all options" do
+      it "inserts a new unique job with minimal options on the slow path" do
+        job_args = SimpleArgsWithInsertOpts.new(job_num: 1)
+        job_args.insert_opts = River::InsertOpts.new(
+          unique_opts: River::UniqueOpts.new(
+            by_queue: true,
+            by_state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_RUNNING] # non-default triggers slow path
+          )
+        )
+
+        insert_res = client.insert(job_args)
+        expect(insert_res.job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        lock_str = "unique_keykind=#{job_args.kind}" \
+          "&queue=#{River::QUEUE_DEFAULT}" \
+          "&state=#{job_args.insert_opts.unique_opts.by_state.join(",")}"
+        expect(advisory_lock_keys).to eq([check_bigint_bounds(client.send(:uint64_to_int64, River::FNV.fnv1_hash(lock_str, size: 64)))])
+
+        expect(insert_res.job.unique_key).to be_nil
+
+        insert_res = client.insert(job_args)
+        expect(insert_res.job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be true
+      end
+
+      it "inserts a new unique job with all options on the fast path" do
+        job_args = SimpleArgsWithInsertOpts.new(job_num: 1)
+        job_args.insert_opts = River::InsertOpts.new(
+          unique_opts: River::UniqueOpts.new(
+            by_args: true,
+            by_period: 15 * 60,
+            by_queue: true,
+            by_state: River::Client.const_get(:DEFAULT_UNIQUE_STATES)
+          )
+        )
+
+        insert_res = client.insert(job_args)
+        expect(insert_res.job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        expect(advisory_lock_keys).to be_empty
+
+        unique_key_str = "&args=#{JSON.dump({job_num: 1})}" \
+          "&period=#{client.send(:truncate_time, now, 15 * 60).utc.strftime("%FT%TZ")}" \
+          "&queue=#{River::QUEUE_DEFAULT}" \
+          "&state=#{River::Client.const_get(:DEFAULT_UNIQUE_STATES).join(",")}"
+        expect(insert_res.job.unique_key).to eq(Digest::SHA256.digest(unique_key_str))
+
+        insert_res = client.insert(job_args)
+        expect(insert_res.job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be true
+      end
+
+      it "inserts a new unique job with all options on the slow path" do
         job_args = SimpleArgsWithInsertOpts.new(job_num: 1)
         job_args.insert_opts = River::InsertOpts.new(
           unique_opts: River::UniqueOpts.new(
@@ -278,16 +291,23 @@ RSpec.describe River::Client do
           "&period=#{client.send(:truncate_time, now, 15 * 60).utc.strftime("%FT%TZ")}" \
           "&queue=#{River::QUEUE_DEFAULT}" \
           "&state=#{[River::JOB_STATE_AVAILABLE].join(",")}"
-        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, River::FNV.fnv1_hash(lock_str, size: 64)))])
+        expect(advisory_lock_keys).to eq([check_bigint_bounds(client.send(:uint64_to_int64, River::FNV.fnv1_hash(lock_str, size: 64)))])
+
+        expect(insert_res.job.unique_key).to be_nil
+
+        insert_res = client.insert(job_args)
+        expect(insert_res.job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be true
       end
 
       it "inserts a new unique job with advisory lock prefix" do
-        client = River::Client.new(mock_driver, advisory_lock_prefix: 123456)
+        client = River::Client.new(driver, advisory_lock_prefix: 123456)
 
         job_args = SimpleArgsWithInsertOpts.new(job_num: 1)
         job_args.insert_opts = River::InsertOpts.new(
           unique_opts: River::UniqueOpts.new(
-            by_queue: true
+            by_queue: true,
+            by_state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_RUNNING] # non-default triggers slow path
           )
         )
 
@@ -297,43 +317,11 @@ RSpec.describe River::Client do
 
         lock_str = "unique_keykind=#{job_args.kind}" \
           "&queue=#{River::QUEUE_DEFAULT}" \
-          "&state=#{River::Client.const_get(:DEFAULT_UNIQUE_STATES).join(",")}"
-        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, 123456 << 32 | River::FNV.fnv1_hash(lock_str, size: 32)))])
+          "&state=#{job_args.insert_opts.unique_opts.by_state.join(",")}"
+        expect(advisory_lock_keys).to eq([check_bigint_bounds(client.send(:uint64_to_int64, 123456 << 32 | River::FNV.fnv1_hash(lock_str, size: 32)))])
 
-        lock_key = mock_driver.advisory_lock_calls[0]
+        lock_key = advisory_lock_keys[0]
         expect(lock_key >> 32).to eq(123456)
-      end
-
-      def job_args_to_row(job_args, insert_opts: River::InsertOpts.new)
-        mock_driver.send(:insert_params_to_jow_row, client.send(:make_insert_params, job_args, insert_opts)[0])
-      end
-
-      it "gets an existing unique job" do
-        job_args = SimpleArgsWithInsertOpts.new(job_num: 1)
-        job_args.insert_opts = River::InsertOpts.new(
-          unique_opts: River::UniqueOpts.new(
-            by_args: true,
-            by_period: 15 * 60,
-            by_queue: true,
-            by_state: [River::JOB_STATE_AVAILABLE]
-          )
-        )
-
-        job = job_args_to_row(job_args)
-        mock_driver.job_get_by_kind_and_unique_properties_returns << job
-
-        insert_res = client.insert(job_args)
-        expect(insert_res).to have_attributes(
-          job: job,
-          unique_skipped_as_duplicated: true
-        )
-
-        lock_str = "unique_keykind=#{job_args.kind}" \
-          "&args=#{JSON.dump({job_num: 1})}" \
-          "&period=#{client.send(:truncate_time, now, 15 * 60).utc.strftime("%FT%TZ")}" \
-          "&queue=#{River::QUEUE_DEFAULT}" \
-          "&state=#{[River::JOB_STATE_AVAILABLE].join(",")}"
-        expect(mock_driver.advisory_lock_calls).to eq([check_bigint_bounds(client.send(:uint64_to_int64, River::FNV.fnv1_hash(lock_str, size: 64)))])
       end
 
       it "skips unique check if unique opts empty" do
@@ -357,9 +345,10 @@ RSpec.describe River::Client do
       ])
       expect(num_inserted).to eq(2)
 
-      job1 = mock_driver.inserted_jobs[0]
-      expect(job1).to have_attributes(
-        id: 1,
+      jobs = driver.job_list
+      expect(jobs.count).to be 2
+
+      expect(jobs[0]).to have_attributes(
         args: {"job_num" => 1},
         attempt: 0,
         created_at: be_within(2).of(Time.now),
@@ -369,12 +358,10 @@ RSpec.describe River::Client do
         queue: River::QUEUE_DEFAULT,
         scheduled_at: be_within(2).of(Time.now),
         state: River::JOB_STATE_AVAILABLE,
-        tags: nil
+        tags: []
       )
 
-      job2 = mock_driver.inserted_jobs[1]
-      expect(job2).to have_attributes(
-        id: 2,
+      expect(jobs[1]).to have_attributes(
         args: {"job_num" => 2},
         attempt: 0,
         created_at: be_within(2).of(Time.now),
@@ -384,7 +371,7 @@ RSpec.describe River::Client do
         queue: River::QUEUE_DEFAULT,
         scheduled_at: be_within(2).of(Time.now),
         state: River::JOB_STATE_AVAILABLE,
-        tags: nil
+        tags: []
       )
     end
 
@@ -395,9 +382,10 @@ RSpec.describe River::Client do
       ])
       expect(num_inserted).to eq(2)
 
-      job1 = mock_driver.inserted_jobs[0]
-      expect(job1).to have_attributes(
-        id: 1,
+      jobs = driver.job_list
+      expect(jobs.count).to be 2
+
+      expect(jobs[0]).to have_attributes(
         args: {"job_num" => 1},
         attempt: 0,
         created_at: be_within(2).of(Time.now),
@@ -407,12 +395,10 @@ RSpec.describe River::Client do
         queue: River::QUEUE_DEFAULT,
         scheduled_at: be_within(2).of(Time.now),
         state: River::JOB_STATE_AVAILABLE,
-        tags: nil
+        tags: []
       )
 
-      job2 = mock_driver.inserted_jobs[1]
-      expect(job2).to have_attributes(
-        id: 2,
+      expect(jobs[1]).to have_attributes(
         args: {"job_num" => 2},
         attempt: 0,
         created_at: be_within(2).of(Time.now),
@@ -422,7 +408,7 @@ RSpec.describe River::Client do
         queue: River::QUEUE_DEFAULT,
         scheduled_at: be_within(2).of(Time.now),
         state: River::JOB_STATE_AVAILABLE,
-        tags: nil
+        tags: []
       )
     end
 
@@ -460,16 +446,17 @@ RSpec.describe River::Client do
       ])
       expect(num_inserted).to eq(2)
 
-      job1 = mock_driver.inserted_jobs[0]
-      expect(job1).to have_attributes(
+      jobs = driver.job_list
+      expect(jobs.count).to be 2
+
+      expect(jobs[0]).to have_attributes(
         max_attempts: 17,
         priority: 3,
         queue: "my_queue_1",
         tags: ["custom_1"]
       )
 
-      job2 = mock_driver.inserted_jobs[1]
-      expect(job2).to have_attributes(
+      expect(jobs[1]).to have_attributes(
         max_attempts: 18,
         priority: 4,
         queue: "my_queue_2",
@@ -485,6 +472,12 @@ RSpec.describe River::Client do
           ))
         ])
       end.to raise_error(ArgumentError, "unique opts can't be used with `#insert_many`")
+    end
+  end
+
+  describe River::Client.const_get(:DEFAULT_UNIQUE_STATES) do
+    it "should be sorted" do
+      expect(River::Client.const_get(:DEFAULT_UNIQUE_STATES)).to eq(River::Client.const_get(:DEFAULT_UNIQUE_STATES).sort)
     end
   end
 

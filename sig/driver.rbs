@@ -4,7 +4,14 @@ module River
     def job_get_by_kind_and_unique_properties: (Driver::JobGetByKindAndUniquePropertiesParam) -> JobRow?
     def job_insert: (Driver::JobInsertParams) -> JobRow
     def job_insert_many: (Array[Driver::JobInsertParams]) -> Integer
+    def job_insert_unique: (Driver::JobInsertParams, String) -> [JobRow, bool]
     def transaction: [T] () { () -> T } -> T
+
+    # this set of methods is used only in tests
+    def advisory_lock_try: (Integer) -> bool
+    def job_get_by_id: (Integer) -> JobRow?
+    def job_list: -> Array[JobRow]
+    def rollback_exception: -> Exception
   end
 
   module Driver

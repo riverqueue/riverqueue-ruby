@@ -1,3 +1,4 @@
+require "digest"
 require "fnv"
 require "time"
 
@@ -152,8 +153,8 @@ module River
     DEFAULT_UNIQUE_STATES = [
       JOB_STATE_AVAILABLE,
       JOB_STATE_COMPLETED,
-      JOB_STATE_RUNNING,
       JOB_STATE_RETRYABLE,
+      JOB_STATE_RUNNING,
       JOB_STATE_SCHEDULED
     ].freeze
     private_constant :DEFAULT_UNIQUE_STATES
@@ -166,17 +167,15 @@ module River
 
       any_unique_opts = false
       get_params = Driver::JobGetByKindAndUniquePropertiesParam.new(kind: insert_params.kind)
+      unique_key = ""
 
       # It's extremely important here that this lock string format and algorithm
       # match the one in the main River library _exactly_. Don't change them
       # unless they're updated everywhere.
-      lock_str = "unique_key"
-      lock_str += "kind=#{insert_params.kind}"
-
       if unique_opts.by_args
         any_unique_opts = true
         get_params.encoded_args = insert_params.encoded_args
-        lock_str += "&args=#{insert_params.encoded_args}"
+        unique_key += "&args=#{insert_params.encoded_args}"
       end
 
       if unique_opts.by_period
@@ -184,27 +183,38 @@ module River
 
         any_unique_opts = true
         get_params.created_at = [lower_period_bound, lower_period_bound + unique_opts.by_period]
-        lock_str += "&period=#{lower_period_bound.strftime("%FT%TZ")}"
+        unique_key += "&period=#{lower_period_bound.strftime("%FT%TZ")}"
       end
 
       if unique_opts.by_queue
         any_unique_opts = true
         get_params.queue = insert_params.queue
-        lock_str += "&queue=#{insert_params.queue}"
+        unique_key += "&queue=#{insert_params.queue}"
       end
 
       if unique_opts.by_state
         any_unique_opts = true
         get_params.state = unique_opts.by_state
-        lock_str += "&state=#{unique_opts.by_state.join(",")}"
+        unique_key += "&state=#{unique_opts.by_state.join(",")}"
       else
         get_params.state = DEFAULT_UNIQUE_STATES
-        lock_str += "&state=#{DEFAULT_UNIQUE_STATES.join(",")}"
+        unique_key += "&state=#{DEFAULT_UNIQUE_STATES.join(",")}"
       end
 
       return block.call unless any_unique_opts
 
+      # fast path
+      if !unique_opts.by_state || unique_opts.by_state.sort == DEFAULT_UNIQUE_STATES
+        unique_key_hash = Digest::SHA256.digest(unique_key)
+        job, unique_skipped_as_duplicate = @driver.job_insert_unique(insert_params, unique_key_hash)
+        return InsertResult.new(job, unique_skipped_as_duplicated: unique_skipped_as_duplicate)
+      end
+
       @driver.transaction do
+        lock_str = "unique_key"
+        lock_str += "kind=#{insert_params.kind}"
+        lock_str += unique_key
+
         lock_key = if @advisory_lock_prefix.nil?
           FNV.fnv1_hash(lock_str, size: 64)
         else
