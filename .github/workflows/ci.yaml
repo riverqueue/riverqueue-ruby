@@ -8,6 +8,8 @@ env:
   # to GITHUB_PATH/PATH.
   BIN_PATH: /home/runner/bin
 
+  RUBY_VERSION: "3.3"
+
   # A suitable URL for a test database.
   TEST_DATABASE_NAME: river_test
   TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/river_test?sslmode=disable
@@ -27,7 +29,7 @@ jobs:
       - name: Install Ruby + `bundle install`
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "head"
+          ruby-version: ${{ env.RUBY_VERSION }}
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
 
       - name: Build gem (riverqueue-ruby)
@@ -53,7 +55,7 @@ jobs:
       - name: Install Ruby + `bundle install`
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "head"
+          ruby-version: ${{ env.RUBY_VERSION }}
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
 
       - name: Standard Ruby (riverqueue-ruby)
@@ -87,7 +89,7 @@ jobs:
       - name: Install Ruby + `bundle install`
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "head"
+          ruby-version: ${{ env.RUBY_VERSION }}
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
 
       - name: Steep (riverqueue-ruby)
@@ -118,7 +120,7 @@ jobs:
       - name: Install Ruby + `bundle install`
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "head"
+          ruby-version: ${{ env.RUBY_VERSION }}
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
 
       # Needed for River's CLI. There is a version of Go on Actions' base image,
