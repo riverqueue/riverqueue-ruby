@@ -13,51 +13,27 @@ module River::Driver
       @db.extension(:pg_json)
     end
 
-    def advisory_lock(key)
-      @db.fetch("SELECT pg_advisory_xact_lock(?)", key).first
-      nil
-    end
-
-    def advisory_lock_try(key)
-      @db.fetch("SELECT pg_try_advisory_xact_lock(?)", key).first[:pg_try_advisory_xact_lock]
-    end
-
     def job_get_by_id(id)
       data_set = @db[:river_job].where(id: id)
       data_set.first ? to_job_row(data_set.first) : nil
     end
 
-    def job_get_by_kind_and_unique_properties(get_params)
-      data_set = @db[:river_job].where(kind: get_params.kind)
-      data_set = data_set.where(::Sequel.lit("tstzrange(?, ?, '[)') @> created_at", get_params.created_at[0], get_params.created_at[1])) if get_params.created_at
-      data_set = data_set.where(args: get_params.encoded_args) if get_params.encoded_args
-      data_set = data_set.where(queue: get_params.queue) if get_params.queue
-      data_set = data_set.where(state: get_params.state) if get_params.state
-      data_set.first ? to_job_row(data_set.first) : nil
-    end
-
     def job_insert(insert_params)
-      to_job_row(@db[:river_job].returning.insert_select(insert_params_to_hash(insert_params)))
+      job_insert_many([insert_params]).first
     end
 
-    def job_insert_unique(insert_params, unique_key)
-      values = @db[:river_job]
+    def job_insert_many(insert_params_array)
+      @db[:river_job]
         .insert_conflict(
-          target: [:kind, :unique_key],
-          conflict_where: ::Sequel.lit("unique_key IS NOT NULL"),
+          target: [:unique_key],
+          conflict_where: ::Sequel.lit(
+            "unique_key IS NOT NULL AND unique_states IS NOT NULL AND river_job_state_in_bitmask(unique_states, state)"
+          ),
           update: {kind: ::Sequel[:excluded][:kind]}
         )
         .returning(::Sequel.lit("*, (xmax != 0) AS unique_skipped_as_duplicate"))
-        .insert_select(
-          insert_params_to_hash(insert_params).merge(unique_key: ::Sequel.blob(unique_key))
-        )
-
-      [to_job_row(values), values[:unique_skipped_as_duplicate]]
-    end
-
-    def job_insert_many(insert_params_many)
-      @db[:river_job].multi_insert(insert_params_many.map { |p| insert_params_to_hash(p) })
-      insert_params_many.count
+        .multi_insert(insert_params_array.map { |p| insert_params_to_hash(p) })
+        .map { |row| to_insert_result(row) }
     end
 
     def job_list
@@ -74,8 +50,6 @@ module River::Driver
     end
 
     private def insert_params_to_hash(insert_params)
-      # the call to `#compact` is important so that we remove nils and table
-      # default values get picked up instead
       {
         args: insert_params.encoded_args,
         kind: insert_params.kind,
@@ -84,8 +58,14 @@ module River::Driver
         queue: insert_params.queue,
         state: insert_params.state,
         scheduled_at: insert_params.scheduled_at,
-        tags: insert_params.tags ? ::Sequel.pg_array(insert_params.tags) : nil
-      }.compact
+        tags: ::Sequel.pg_array(insert_params.tags || [], :text),
+        unique_key: insert_params.unique_key ? ::Sequel.blob(insert_params.unique_key) : nil,
+        unique_states: insert_params.unique_states
+      }
+    end
+
+    private def to_insert_result(result)
+      [to_job_row(result), result[:unique_skipped_as_duplicate]]
     end
 
     private def to_job_row(river_job)
@@ -113,7 +93,8 @@ module River::Driver
         scheduled_at: river_job[:scheduled_at].getutc,
         state: river_job[:state],
         tags: river_job[:tags].to_a,
-        unique_key: river_job[:unique_key]&.to_s
+        unique_key: river_job[:unique_key]&.to_s,
+        unique_states: ::River::UniqueBitmask.to_states(river_job[:unique_states]&.to_i(2))
       )
     end
   end

@@ -1,9 +1,0 @@
-module River
-  module FNV
-    def self.fnv1_hash: (String, size: 32 | 64) -> Integer
-
-    MASK: Hash[Integer, Integer]
-    OFFSET_BASIS: Hash[Integer, Integer]
-    PRIME: Hash[Integer, Integer]
-  end
-end

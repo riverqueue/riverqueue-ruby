@@ -3,6 +3,7 @@ module River
   JOB_STATE_CANCELLED = "cancelled"
   JOB_STATE_COMPLETED = "completed"
   JOB_STATE_DISCARDED = "discarded"
+  JOB_STATE_PENDING = "pending"
   JOB_STATE_RETRYABLE = "retryable"
   JOB_STATE_RUNNING = "running"
   JOB_STATE_SCHEDULED = "scheduled"
@@ -113,6 +114,9 @@ module River
     # configuration.
     attr_accessor :unique_key
 
+    # A list of states that the job must be in to be considered for uniqueness.
+    attr_accessor :unique_states
+
     def initialize(
       id:,
       args:,
@@ -132,7 +136,8 @@ module River
       errors: nil,
       finalized_at: nil,
       tags: nil,
-      unique_key: nil
+      unique_key: nil,
+      unique_states: nil
     )
       self.id = id
       self.args = args
@@ -151,6 +156,7 @@ module River
       self.state = state
       self.tags = tags
       self.unique_key = unique_key
+      self.unique_states = unique_states
     end
   end
 

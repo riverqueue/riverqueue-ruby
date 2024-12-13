@@ -122,14 +122,14 @@ RSpec.describe River::Driver::ActiveRecord do
 
   describe "#to_job_row_from_raw" do
     it "converts a database record to `River::JobRow` with minimal properties" do
-      river_job = River::Driver::ActiveRecord::RiverJob.insert({
+      res = River::Driver::ActiveRecord::RiverJob.insert({
         id: 1,
         args: %({"job_num":1}),
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT
-      }, returning: Arel.sql("*"))
+      }, returning: Arel.sql("*, false AS unique_skipped_as_duplicate"))
 
-      job_row = driver.send(:to_job_row_from_raw, river_job)
+      job_row, skipped_as_duplicate = driver.send(:to_job_row_from_raw, res.rows[0], res.columns, res.column_types)
 
       expect(job_row).to be_an_instance_of(River::JobRow)
       expect(job_row).to have_attributes(
@@ -148,11 +148,12 @@ RSpec.describe River::Driver::ActiveRecord do
         state: River::JOB_STATE_AVAILABLE,
         tags: []
       )
+      expect(skipped_as_duplicate).to be(false)
     end
 
     it "converts a database record to `River::JobRow` with all properties" do
       now = Time.now
-      river_job = River::Driver::ActiveRecord::RiverJob.insert({
+      res = River::Driver::ActiveRecord::RiverJob.insert({
         id: 1,
         attempt: 1,
         attempted_at: now,
@@ -168,9 +169,9 @@ RSpec.describe River::Driver::ActiveRecord do
         state: River::JOB_STATE_COMPLETED,
         tags: ["tag1"],
         unique_key: Digest::SHA256.digest("unique_key_str")
-      }, returning: Arel.sql("*"))
+      }, returning: Arel.sql("*, true AS unique_skipped_as_duplicate"))
 
-      job_row = driver.send(:to_job_row_from_raw, river_job)
+      job_row, skipped_as_duplicate = driver.send(:to_job_row_from_raw, res.rows[0], res.columns, res.column_types)
 
       expect(job_row).to be_an_instance_of(River::JobRow)
       expect(job_row).to have_attributes(
@@ -190,11 +191,12 @@ RSpec.describe River::Driver::ActiveRecord do
         tags: ["tag1"],
         unique_key: Digest::SHA256.digest("unique_key_str")
       )
+      expect(skipped_as_duplicate).to be(true)
     end
 
     it "with errors" do
       now = Time.now.utc
-      river_job = River::Driver::ActiveRecord::RiverJob.insert({
+      res = River::Driver::ActiveRecord::RiverJob.insert({
         args: %({"job_num":1}),
         errors: [JSON.dump(
           {
@@ -207,9 +209,9 @@ RSpec.describe River::Driver::ActiveRecord do
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT,
         state: River::JOB_STATE_AVAILABLE
-      }, returning: Arel.sql("*"))
+      }, returning: Arel.sql("*, false AS unique_skipped_as_duplicate"))
 
-      job_row = driver.send(:to_job_row_from_raw, river_job)
+      job_row, skipped_as_duplicate = driver.send(:to_job_row_from_raw, res.rows[0], res.columns, res.column_types)
 
       expect(job_row.errors.count).to be(1)
       expect(job_row.errors[0]).to be_an_instance_of(River::AttemptError)
@@ -219,6 +221,7 @@ RSpec.describe River::Driver::ActiveRecord do
         error: "job failure",
         trace: "error trace"
       )
+      expect(skipped_as_duplicate).to be(false)
     end
   end
 end

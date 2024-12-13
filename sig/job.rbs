@@ -3,11 +3,12 @@ module River
   JOB_STATE_CANCELLED: "cancelled"
   JOB_STATE_COMPLETED: "completed"
   JOB_STATE_DISCARDED: "discarded"
+  JOB_STATE_PENDING: "pending"
   JOB_STATE_RETRYABLE: "retryable"
   JOB_STATE_RUNNING: "running"
   JOB_STATE_SCHEDULED: "scheduled"
 
-  type jobStateAll = "available" | "cancelled" | "completed" | "discarded" | "retryable" | "running" | "scheduled"
+  type jobStateAll = "available" | "cancelled" | "completed" | "discarded" | "pending" | "retryable" | "running" | "scheduled"
 
   interface _JobArgs
     def is_a?: (Class) -> bool
@@ -52,8 +53,9 @@ module River
     attr_accessor state: jobStateAll
     attr_accessor tags: Array[String]?
     attr_accessor unique_key: String?
+    attr_accessor unique_states: Array[jobStateAll]?
 
-    def initialize: (id: Integer, args: Hash[String, untyped], attempt: Integer, ?attempted_at: Time?, ?attempted_by: String?, created_at: Time, ?errors: Array[AttemptError]?, ?finalized_at: Time?, kind: String, max_attempts: Integer, metadata: Hash[String, untyped], priority: Integer, queue: String, scheduled_at: Time, state: jobStateAll, ?tags: Array[String]?, ?unique_key: String?) -> void
+    def initialize: (id: Integer, args: Hash[String, untyped], attempt: Integer, ?attempted_at: Time?, ?attempted_by: String?, created_at: Time, ?errors: Array[AttemptError]?, ?finalized_at: Time?, kind: String, max_attempts: Integer, metadata: Hash[String, untyped], priority: Integer, queue: String, scheduled_at: Time, state: jobStateAll, ?tags: Array[String]?, ?unique_key: String?, ?unique_states: Array[jobStateAll]?) -> void
   end
 
   class AttemptError

@@ -19,7 +19,7 @@ end
 
 shared_examples "driver shared examples" do
   describe "unique insertion" do
-    it "inserts a unique job once on the fast path" do
+    it "inserts a unique job once" do
       args = SimpleArgsWithInsertOpts.new(job_num: 1)
       args.insert_opts = River::InsertOpts.new(
         unique_opts: River::UniqueOpts.new(
@@ -37,14 +37,14 @@ shared_examples "driver shared examples" do
       expect(insert_res.unique_skipped_as_duplicated).to be true
     end
 
-    it "inserts a unique job on the slow path" do
+    it "inserts a unique job with custom states" do
       client = River::Client.new(driver)
 
       args = SimpleArgsWithInsertOpts.new(job_num: 1)
       args.insert_opts = River::InsertOpts.new(
         unique_opts: River::UniqueOpts.new(
           by_queue: true,
-          by_state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_RUNNING] # non-default triggers slow path
+          by_state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_PENDING, River::JOB_STATE_RUNNING, River::JOB_STATE_SCHEDULED]
         )
       )
 
@@ -56,47 +56,6 @@ shared_examples "driver shared examples" do
       insert_res = client.insert(args)
       expect(insert_res.job.id).to eq(original_job.id)
       expect(insert_res.unique_skipped_as_duplicated).to be true
-    end
-
-    it "inserts a unique job on the slow path with an advisory lock prefix" do
-      client = River::Client.new(driver, advisory_lock_prefix: 123456)
-
-      args = SimpleArgsWithInsertOpts.new(job_num: 1)
-      args.insert_opts = River::InsertOpts.new(
-        unique_opts: River::UniqueOpts.new(
-          by_queue: true,
-          by_state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_RUNNING] # non-default triggers slow path
-        )
-      )
-
-      insert_res = client.insert(args)
-      expect(insert_res.job).to_not be_nil
-      expect(insert_res.unique_skipped_as_duplicated).to be false
-      original_job = insert_res.job
-
-      insert_res = client.insert(args)
-      expect(insert_res.job.id).to eq(original_job.id)
-      expect(insert_res.unique_skipped_as_duplicated).to be true
-    end
-  end
-
-  describe "#advisory_lock" do
-    it "takes an advisory lock" do
-      driver.transaction do
-        driver.advisory_lock(123)
-
-        Thread.new do
-          expect(driver.advisory_lock_try(123)).to be false
-        end.join
-      end
-    end
-  end
-
-  describe "#advisory_lock_try" do
-    it "takes an advisory lock" do
-      driver.transaction do
-        expect(driver.advisory_lock_try(123)).to be true
-      end
     end
   end
 
@@ -110,93 +69,6 @@ shared_examples "driver shared examples" do
 
     it "returns nil on not found" do
       expect(driver.job_get_by_id(-1)).to be nil
-    end
-  end
-
-  describe "#job_get_by_kind_and_unique_properties" do
-    let(:job_args) { SimpleArgs.new(job_num: 1) }
-
-    it "gets a job by kind" do
-      insert_res = client.insert(job_args)
-
-      job = driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-        kind: job_args.kind
-      ))
-      expect(job.id).to eq(insert_res.job.id)
-
-      expect(
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: "does_not_exist"
-        ))
-      ).to be_nil
-    end
-
-    it "gets a job by created at period" do
-      insert_res = client.insert(job_args)
-
-      job = driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-        kind: job_args.kind,
-        created_at: [insert_res.job.created_at - 1, insert_res.job.created_at + 1]
-      ))
-      expect(job.id).to eq(insert_res.job.id)
-
-      expect(
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          created_at: [insert_res.job.created_at + 1, insert_res.job.created_at + 3]
-        ))
-      ).to be_nil
-    end
-
-    it "gets a job by encoded args" do
-      insert_res = client.insert(job_args)
-
-      job = driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-        kind: job_args.kind,
-        encoded_args: JSON.dump(insert_res.job.args)
-      ))
-      expect(job.id).to eq(insert_res.job.id)
-
-      expect(
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          encoded_args: JSON.dump({"job_num" => 2})
-        ))
-      ).to be_nil
-    end
-
-    it "gets a job by queue" do
-      insert_res = client.insert(job_args)
-
-      job = driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-        kind: job_args.kind,
-        queue: insert_res.job.queue
-      ))
-      expect(job.id).to eq(insert_res.job.id)
-
-      expect(
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          queue: "other_queue"
-        ))
-      ).to be_nil
-    end
-
-    it "gets a job by state" do
-      insert_res = client.insert(job_args)
-
-      job = driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-        kind: job_args.kind,
-        state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_COMPLETED]
-      ))
-      expect(job.id).to eq(insert_res.job.id)
-
-      expect(
-        driver.job_get_by_kind_and_unique_properties(River::Driver::JobGetByKindAndUniquePropertiesParam.new(
-          kind: job_args.kind,
-          state: [River::JOB_STATE_RUNNING, River::JOB_STATE_SCHEDULED]
-        ))
-      ).to be_nil
     end
   end
 
@@ -215,6 +87,7 @@ shared_examples "driver shared examples" do
         state: River::JOB_STATE_AVAILABLE,
         tags: []
       )
+      expect(insert_res.unique_skipped_as_duplicated).to be false
 
       # Make sure it made it to the database. Assert only minimally since we're
       # certain it's the same as what we checked above.
@@ -235,6 +108,7 @@ shared_examples "driver shared examples" do
         scheduled_at: be_within(2).of(target_time),
         state: River::JOB_STATE_SCHEDULED
       )
+      expect(insert_res.unique_skipped_as_duplicated).to be false
     end
 
     it "inserts with job insert opts" do
@@ -253,6 +127,7 @@ shared_examples "driver shared examples" do
         queue: "job_custom_queue",
         tags: ["job_custom"]
       )
+      expect(insert_res.unique_skipped_as_duplicated).to be false
     end
 
     it "inserts with insert opts" do
@@ -278,6 +153,7 @@ shared_examples "driver shared examples" do
         queue: "my_queue",
         tags: ["custom"]
       )
+      expect(insert_res.unique_skipped_as_duplicated).to be false
     end
 
     it "inserts with job args hash" do
@@ -288,6 +164,7 @@ shared_examples "driver shared examples" do
         args: {"job_num" => 1},
         kind: "hash_kind"
       )
+      expect(insert_res.unique_skipped_as_duplicated).to be false
     end
 
     it "inserts in a transaction" do
@@ -298,6 +175,7 @@ shared_examples "driver shared examples" do
 
         job = driver.job_get_by_id(insert_res.job.id)
         expect(job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be false
 
         raise driver.rollback_exception
       end
@@ -306,15 +184,69 @@ shared_examples "driver shared examples" do
       job = driver.job_get_by_id(insert_res.job.id)
       expect(job).to be_nil
     end
+
+    it "inserts a unique job" do
+      insert_params = River::Driver::JobInsertParams.new(
+        encoded_args: JSON.dump({"job_num" => 1}),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        scheduled_at: Time.now.getutc,
+        state: River::JOB_STATE_AVAILABLE,
+        unique_key: "unique_key",
+        unique_states: "00000001",
+        tags: nil
+      )
+
+      job_row, unique_skipped_as_duplicated = driver.job_insert(insert_params)
+      expect(job_row).to have_attributes(
+        attempt: 0,
+        args: {"job_num" => 1},
+        created_at: be_within(2).of(Time.now.getutc),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        scheduled_at: be_within(2).of(Time.now.getutc),
+        state: River::JOB_STATE_AVAILABLE,
+        tags: [],
+        unique_key: "unique_key",
+        unique_states: [::River::JOB_STATE_AVAILABLE]
+      )
+      expect(unique_skipped_as_duplicated).to be false
+
+      # second insertion should be skipped
+      job_row, unique_skipped_as_duplicated = driver.job_insert(insert_params)
+      expect(job_row).to have_attributes(
+        attempt: 0,
+        args: {"job_num" => 1},
+        created_at: be_within(2).of(Time.now.getutc),
+        kind: "simple",
+        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
+        queue: River::QUEUE_DEFAULT,
+        priority: River::PRIORITY_DEFAULT,
+        scheduled_at: be_within(2).of(Time.now.getutc),
+        state: River::JOB_STATE_AVAILABLE,
+        tags: [],
+        unique_key: "unique_key",
+        unique_states: [::River::JOB_STATE_AVAILABLE]
+      )
+      expect(unique_skipped_as_duplicated).to be true
+    end
   end
 
   describe "#job_insert_many" do
     it "inserts multiple jobs" do
-      num_inserted = client.insert_many([
+      inserted = client.insert_many([
         SimpleArgs.new(job_num: 1),
         SimpleArgs.new(job_num: 2)
       ])
-      expect(num_inserted).to eq(2)
+      expect(inserted.length).to eq(2)
+      expect(inserted[0].job).to have_attributes(args: {"job_num" => 1})
+      expect(inserted[0].unique_skipped_as_duplicated).to eq false
+      expect(inserted[1].job).to have_attributes(args: {"job_num" => 2})
+      expect(inserted[1].unique_skipped_as_duplicated).to eq false
 
       jobs = driver.job_list
       expect(jobs.count).to be 2
@@ -350,11 +282,15 @@ shared_examples "driver shared examples" do
       jobs = nil
 
       driver.transaction do
-        num_inserted = client.insert_many([
+        inserted = client.insert_many([
           SimpleArgs.new(job_num: 1),
           SimpleArgs.new(job_num: 2)
         ])
-        expect(num_inserted).to eq(2)
+        expect(inserted.length).to eq(2)
+        expect(inserted[0].unique_skipped_as_duplicated).to eq false
+        expect(inserted[0].job).to have_attributes(args: {"job_num" => 1})
+        expect(inserted[1].unique_skipped_as_duplicated).to eq false
+        expect(inserted[1].job).to have_attributes(args: {"job_num" => 2})
 
         jobs = driver.job_list
         expect(jobs.count).to be 2
@@ -365,52 +301,6 @@ shared_examples "driver shared examples" do
       # Not present because the jobs were rolled back.
       expect(driver.job_get_by_id(jobs[0].id)).to be nil
       expect(driver.job_get_by_id(jobs[1].id)).to be nil
-    end
-  end
-
-  describe "#job_insert_unique" do
-    it "inserts a job" do
-      insert_params = River::Driver::JobInsertParams.new(
-        encoded_args: JSON.dump({"job_num" => 1}),
-        kind: "simple",
-        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
-        queue: River::QUEUE_DEFAULT,
-        priority: River::PRIORITY_DEFAULT,
-        scheduled_at: Time.now.getutc,
-        state: River::JOB_STATE_AVAILABLE,
-        tags: nil
-      )
-
-      job_row, unique_skipped_as_duplicated = driver.job_insert_unique(insert_params, "unique_key")
-      expect(job_row).to have_attributes(
-        attempt: 0,
-        args: {"job_num" => 1},
-        created_at: be_within(2).of(Time.now.getutc),
-        kind: "simple",
-        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
-        queue: River::QUEUE_DEFAULT,
-        priority: River::PRIORITY_DEFAULT,
-        scheduled_at: be_within(2).of(Time.now.getutc),
-        state: River::JOB_STATE_AVAILABLE,
-        tags: []
-      )
-      expect(unique_skipped_as_duplicated).to be false
-
-      # second insertion should be skipped
-      job_row, unique_skipped_as_duplicated = driver.job_insert_unique(insert_params, "unique_key")
-      expect(job_row).to have_attributes(
-        attempt: 0,
-        args: {"job_num" => 1},
-        created_at: be_within(2).of(Time.now.getutc),
-        kind: "simple",
-        max_attempts: River::MAX_ATTEMPTS_DEFAULT,
-        queue: River::QUEUE_DEFAULT,
-        priority: River::PRIORITY_DEFAULT,
-        scheduled_at: be_within(2).of(Time.now.getutc),
-        state: River::JOB_STATE_AVAILABLE,
-        tags: []
-      )
-      expect(unique_skipped_as_duplicated).to be true
     end
   end
 

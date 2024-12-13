@@ -114,23 +114,33 @@ module River
     # Unlike other unique options, ByState gets a default when it's not set for
     # user convenience. The default is equivalent to:
     #
-    #   by_state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_COMPLETED, River::JOB_STATE_RUNNING, River::JOB_STATE_RETRYABLE, River::JOB_STATE_SCHEDULED]
+    #   by_state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_COMPLETED, River::JOB_STATE_PENDING, River::JOB_STATE_RUNNING, River::JOB_STATE_RETRYABLE, River::JOB_STATE_SCHEDULED]
     #
     # With this setting, any jobs of the same kind that have been completed or
     # discarded, but not yet cleaned out by the system, won't count towards the
     # uniqueness of a new insert.
+    #
+    # The pending, scheduled, available, and running states are required when
+    # customizing this list.
     attr_accessor :by_state
+
+    # Indicates that the job kind should not be considered for uniqueness. This
+    # is useful when you want to enforce uniqueness based on other properties
+    # across multiple worker types.
+    attr_accessor :exclude_kind
 
     def initialize(
       by_args: nil,
       by_period: nil,
       by_queue: nil,
-      by_state: nil
+      by_state: nil,
+      exclude_kind: nil
     )
       self.by_args = by_args
       self.by_period = by_period
       self.by_queue = by_queue
       self.by_state = by_state
+      self.exclude_kind = exclude_kind
     end
   end
 end

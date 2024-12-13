@@ -2,9 +2,8 @@ module River
   interface _Driver
     def advisory_lock: (Integer) -> void
     def job_get_by_kind_and_unique_properties: (Driver::JobGetByKindAndUniquePropertiesParam) -> JobRow?
-    def job_insert: (Driver::JobInsertParams) -> JobRow
-    def job_insert_many: (Array[Driver::JobInsertParams]) -> Integer
-    def job_insert_unique: (Driver::JobInsertParams, String) -> [JobRow, bool]
+    def job_insert: (Driver::JobInsertParams) -> [JobRow, bool]
+    def job_insert_many: (Array[Driver::JobInsertParams]) -> Array[[JobRow, bool]]
     def transaction: [T] () { () -> T } -> T
 
     # this set of methods is used only in tests
@@ -34,8 +33,10 @@ module River
       attr_accessor scheduled_at: Time?
       attr_accessor state: jobStateAll
       attr_accessor tags: Array[String]?
+      attr_accessor unique_key: String?
+      attr_accessor unique_states: String?
 
-      def initialize: (encoded_args: String, kind: String, max_attempts: Integer, priority: Integer, queue: String, scheduled_at: Time?, state: jobStateAll, tags: Array[String]?) -> void
+      def initialize: (encoded_args: String, kind: String, max_attempts: Integer, priority: Integer, queue: String, scheduled_at: Time?, state: jobStateAll, tags: Array[String]?, ?unique_key: String?, ?unique_states: String?) -> void
     end
   end
 end
