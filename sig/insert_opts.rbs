@@ -11,11 +11,12 @@ module River
   end
 
   class UniqueOpts
-    attr_accessor by_args: bool?
+    attr_accessor by_args: bool? | Array[String]?
     attr_accessor by_period: Integer?
     attr_accessor by_queue: bool?
     attr_accessor by_state: Array[jobStateAll]?
+    attr_accessor exclude_kind: bool?
 
-    def initialize: (?by_args: bool?, ?by_period: Integer?, ?by_queue: bool?, ?by_state: Array[jobStateAll]?) -> void
+    def initialize: (?by_args: bool? | Array[String]?, ?by_period: Integer?, ?by_queue: bool?, ?by_state: Array[jobStateAll]?, ?exclude_kind: bool?) -> void
   end
 end

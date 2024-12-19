@@ -4,27 +4,27 @@ module River
   QUEUE_DEFAULT: String
 
   class Client
-    @advisory_lock_prefix: Integer?
     @driver: _Driver
     @time_now_utc: ^() -> Time
 
-    def initialize: (_Driver driver, ?advisory_lock_prefix: Integer?) -> void
+    def initialize: (_Driver driver) -> void
     def insert: (jobArgs, ?insert_opts: InsertOpts) -> InsertResult
-    def insert_many: (Array[jobArgs | InsertManyParams]) -> Integer
-
-    private def check_advisory_lock_prefix_bounds: (Integer?) -> Integer?
+    def insert_many: (Array[jobArgs | InsertManyParams]) -> Array[InsertResult]
 
     DEFAULT_UNIQUE_STATES: Array[jobStateAll]
     EMPTY_INSERT_OPTS: InsertOpts
+    REQUIRED_UNIQUE_STATES: Array[jobStateAll]
 
-    private def check_unique_job: (Driver::JobInsertParams, UniqueOpts?) { () -> InsertResult } -> InsertResult
-    private def make_insert_params: (jobArgs, InsertOpts, ?is_insert_many: bool) -> [Driver::JobInsertParams, UniqueOpts?]
+    private def insert_and_check_unique_job: (Driver::JobInsertParams) -> InsertResult
+    private def make_insert_params: (jobArgs, InsertOpts) -> Driver::JobInsertParams
+    private def make_unique_key_and_bitmask: (Driver::JobInsertParams, UniqueOpts) -> [String, String]
     private def truncate_time: (Time, Integer) -> Time
     private def uint64_to_int64: (Integer) -> Integer
 
     TAG_RE: Regexp
 
-    private def validate_tags: (Array[String]?) -> Array[String]?
+    private def validate_tags: (Array[String]) -> Array[String]
+    private def validate_unique_states: (Array[jobStateAll]) -> Array[jobStateAll]
   end
 
   class InsertManyParams
@@ -45,6 +45,6 @@ module River
     attr_reader job: JobRow
     attr_reader unique_skipped_as_duplicated: bool
 
-    def initialize: (JobRow job, ?unique_skipped_as_duplicated: bool) -> void
+    def initialize: (JobRow job, unique_skipped_as_duplicated: bool) -> void
   end
 end

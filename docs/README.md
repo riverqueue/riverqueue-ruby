@@ -42,8 +42,8 @@ insert_res.job # inserted job row
 
 Job args should:
 
-* Respond to `#kind` with a unique string that identifies them in the database, and which a Go worker will recognize.
-* Response to `#to_json` with a JSON serialization that'll be parseable as an object in Go.
+- Respond to `#kind` with a unique string that identifies them in the database, and which a Go worker will recognize.
+- Response to `#to_json` with a JSON serialization that'll be parseable as an object in Go.
 
 They may also respond to `#insert_opts` with an instance of `InsertOpts` to define insertion options that'll be used for all jobs of the kind.
 
@@ -89,7 +89,7 @@ insert_res.unique_skipped_as_duplicated
 Unique job insertion takes a Postgres advisory lock to make sure that its uniqueness check still works even if two conflicting insert operations are occurring in parallel. Postgres advisory locks share a global 64-bit namespace, which is a large enough space that it's unlikely for two advisory locks to ever conflict, but to _guarantee_ that River's advisory locks never interfere with an application's, River can be configured with a 32-bit advisory lock prefix which it will use for all its locks:
 
 ```ruby
-client = River::Client.new(mock_driver, advisory_lock_prefix: 123456)
+client = River::Client.new(mock_driver)
 ```
 
 Doing so has the downside of leaving only 32 bits for River's locks (64 bits total - 32-bit prefix), making them somewhat more likely to conflict with each other.
