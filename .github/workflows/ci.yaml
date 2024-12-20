@@ -84,6 +84,27 @@ jobs:
         run: bundle exec standardrb
         working-directory: ./driver/riverqueue-sequel
 
+  tool_versions_check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check RUBY_VERSION matches .tool-versions Ruby version
+        run: |
+          cat <<- "EOF" | ruby
+          ruby_env = ENV["RUBY_VERSION"] || abort("need RUBY_VERSION")
+          ruby_tool_versions = File.read('.tool-versions').split('\n')[0].split[1]
+
+          if ruby_env != ruby_tool_versions
+            abort("CI version $RUBY_VERSION ${ruby_env } should match .tool-versions Ruby ${ruby_tool_versions }")
+          end
+          EOF
+
+        # run: |
+        #   [[ "$RUBY_VERSION" == "$(cat .tool-versions | grep ruby | cut -w -f 2)" ]] || echo "CI version \$RUBY_VERSION should match .tool-versions Ruby `cat .tool-versions | grep ruby | cut -w -f 2`" && (exit 1)
+
   type_check:
     runs-on: ubuntu-latest
     timeout-minutes: 3
