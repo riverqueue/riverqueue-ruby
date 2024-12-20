@@ -67,8 +67,7 @@ GEM
     regexp_parser (2.9.2)
     reline (0.5.9)
       io-console (~> 0.5)
-    rexml (3.3.6)
-      strscan
+    rexml (3.4.0)
     rspec-core (3.13.0)
       rspec-support (~> 3.13.0)
     rspec-expectations (3.13.2)
@@ -112,7 +111,6 @@ GEM
       lint_roller (~> 1.1)
       rubocop-performance (~> 1.21.0)
     stringio (3.1.1)
-    strscan (3.1.0)
     timeout (0.4.1)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
@@ -121,6 +119,7 @@ GEM
 PLATFORMS
   arm64-darwin-22
   arm64-darwin-23
+  arm64-darwin-24
   x86_64-linux
 
 DEPENDENCIES

@@ -33,6 +33,8 @@ Users should upgrade backends to River v0.12.0 before upgrading this library in 
 
   This updated implementation is significantly faster due to the removal of advisory locks in favor of an index-backed uniqueness system, while allowing some flexibility in which job states are considered. However, not all states may be removed from consideration when using the `by_state` option; pending, scheduled, available, and running states are required whenever customizing this list.
 
+- Update REXML dependency. [PR #28](https://github.com/riverqueue/riverqueue-ruby/pull/36).
+
 ## [0.7.0] - 2024-08-30
 
 ### Changed
