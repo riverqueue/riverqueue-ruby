@@ -220,7 +220,7 @@ module River
       end
 
       if unique_opts.by_period
-        lower_period_bound = truncate_time(@time_now_utc.call, unique_opts.by_period).utc
+        lower_period_bound = truncate_time(insert_params.scheduled_at || @time_now_utc.call, unique_opts.by_period).utc
 
         unique_key += "&period=#{lower_period_bound.strftime("%FT%TZ")}"
       end

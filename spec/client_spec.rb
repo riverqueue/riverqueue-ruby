@@ -291,6 +291,24 @@ RSpec.describe River::Client do
         expect(insert_res.unique_skipped_as_duplicated).to be false
       end
 
+      it "inserts a new unique job with period determined from `scheduled_at`" do
+        job_args = ComplexArgs.new(customer_id: 1, order_id: 2, trace_id: 3, email: "john@example.com")
+        insert_opts = River::InsertOpts.new(
+          scheduled_at: now + 3600,
+          unique_opts: River::UniqueOpts.new(
+            by_period: 15 * 60
+          )
+        )
+
+        insert_res = client.insert(job_args, insert_opts: insert_opts)
+        expect(insert_res.job).to_not be_nil
+        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        unique_key_str = "&kind=#{insert_res.job.kind}" \
+          "&period=#{client.send(:truncate_time, now + 3600, 15 * 60).utc.strftime("%FT%TZ")}"
+        expect(insert_res.job.unique_key).to eq(Digest::SHA256.digest(unique_key_str))
+      end
+
       it "skips unique check if unique opts empty" do
         job_args = SimpleArgsWithInsertOpts.new(job_num: 1)
         job_args.insert_opts = River::InsertOpts.new(

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `by_period` uniqueness is now based off a job's `scheduled_at` instead of the current time if it has a value. [PR #39](https://github.com/riverqueue/riverqueue-ruby/pull/39).
+
 ## [0.8.0] - 2024-12-19
 
 ⚠️ Version 0.8.0 contains breaking changes to transition to River's new unique jobs implementation and to enable broader, more flexible application of unique jobs. Detailed notes on the implementation are contained in [the original River PR](https://github.com/riverqueue/river/pull/590), and the notes below include short summaries of the ways this impacts this client specifically.
