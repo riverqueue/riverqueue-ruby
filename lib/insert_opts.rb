@@ -72,12 +72,6 @@ module River
   # given job kind, a single instance is allowed for each combination of args
   # and queues. If either args or queue is changed on a new job, it's allowed to
   # be inserted as a new job.
-  #
-  # Uniquenes is checked at insert time by taking a Postgres advisory lock,
-  # doing a look up for an equivalent row, and inserting only if none was found.
-  # There's no database-level mechanism that guarantees jobs stay unique, so if
-  # an equivalent row is inserted out of band (or batch inserted, where a unique
-  # check doesn't occur), it's conceivable that duplicates could coexist.
   class UniqueOpts
     # Indicates that uniqueness should be enforced for any specific instance of
     # encoded args for a job.
