@@ -24,7 +24,7 @@ client = River::Client.new(River::Driver::ActiveRecord.new)
 Define a job and insert it:
 
 ```ruby
-class SortArgs
+class SimpleArgs
   attr_accessor :strings
 
   def initialize(strings:)
