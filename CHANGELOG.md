@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-04-11
+
 ### Changed
 
 - `by_period` uniqueness is now based off a job's `scheduled_at` instead of the current time if it has a value. [PR #39](https://github.com/riverqueue/riverqueue-ruby/pull/39).
+
+## Fixed
+
+- Correct some mistakes in the readme that referenced `SimpleArgs` instead of `SortArgs`. [PR #44](https://github.com/riverqueue/riverqueue-ruby/pull/44).
 
 ## [0.8.0] - 2024-12-19
 
