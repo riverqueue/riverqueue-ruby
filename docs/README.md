@@ -90,8 +90,8 @@ Use `#insert_many` to bulk insert jobs as a single operation for improved effici
 
 ```ruby
 num_inserted = client.insert_many([
-  SimpleArgs.new(job_num: 1),
-  SimpleArgs.new(job_num: 2)
+  SortArgs.new(strings: ["whale", "tiger", "bear"]),
+  SortArgs.new(strings: ["lion", "dolphin", "eagle"])
 ])
 ```
 
@@ -99,8 +99,8 @@ Or with `InsertManyParams`, which may include insertion options:
 
 ```ruby
 num_inserted = client.insert_many([
-  River::InsertManyParams.new(SimpleArgs.new(job_num: 1), insert_opts: River::InsertOpts.new(max_attempts: 5)),
-  River::InsertManyParams.new(SimpleArgs.new(job_num: 2), insert_opts: River::InsertOpts.new(queue: "high_priority"))
+  River::InsertManyParams.new(SimpleArgs.new(strings: ["whale", "tiger", "bear"]), insert_opts: River::InsertOpts.new(max_attempts: 5)),
+  River::InsertManyParams.new(SimpleArgs.new(strings: ["lion", "dolphin", "eagle"]), insert_opts: River::InsertOpts.new(queue: "high_priority"))
 ])
 ```
 
