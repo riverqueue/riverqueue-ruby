@@ -36,7 +36,7 @@ class SortArgs
   def to_json = JSON.dump({strings: strings})
 end
 
-insert_res = client.insert(SimpleArgs.new(strings: ["whale", "tiger", "bear"]))
+insert_res = client.insert(SortArgs.new(strings: ["whale", "tiger", "bear"]))
 insert_res.job # inserted job row
 ```
 
@@ -53,7 +53,7 @@ Inserts take an `insert_opts` parameter to customize features of the inserted jo
 
 ```ruby
 insert_res = client.insert(
-  SimpleArgs.new(strings: ["whale", "tiger", "bear"]),
+  SortArgs.new(strings: ["whale", "tiger", "bear"]),
   insert_opts: River::InsertOpts.new(
     max_attempts: 17,
     priority: 3,
@@ -110,13 +110,13 @@ No extra code is needed to insert jobs from inside a transaction. Just make sure
 
 ```ruby
 ActiveRecord::Base.transaction do
-  client.insert(SimpleArgs.new(strings: ["whale", "tiger", "bear"]))
+  client.insert(SortArgs.new(strings: ["whale", "tiger", "bear"]))
 end
 ```
 
 ```ruby
 DB.transaction do
-  client.insert(SimpleArgs.new(strings: ["whale", "tiger", "bear"]))
+  client.insert(SortArgs.new(strings: ["whale", "tiger", "bear"]))
 end
 ```
 
