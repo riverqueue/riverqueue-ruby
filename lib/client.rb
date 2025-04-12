@@ -210,7 +210,7 @@ module River
       if unique_opts.by_args
         parsed_args = JSON.parse(insert_params.encoded_args)
         filtered_args = if unique_opts.by_args.is_a?(Array)
-          parsed_args.select { |k, _| unique_opts.by_args.include?(k) }
+          parsed_args.slice(*unique_opts.by_args)
         else
           parsed_args
         end
