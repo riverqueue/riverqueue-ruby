@@ -99,8 +99,8 @@ Or with `InsertManyParams`, which may include insertion options:
 
 ```ruby
 num_inserted = client.insert_many([
-  River::InsertManyParams.new(SimpleArgs.new(strings: ["whale", "tiger", "bear"]), insert_opts: River::InsertOpts.new(max_attempts: 5)),
-  River::InsertManyParams.new(SimpleArgs.new(strings: ["lion", "dolphin", "eagle"]), insert_opts: River::InsertOpts.new(queue: "high_priority"))
+  River::InsertManyParams.new(SortArgs.new(strings: ["whale", "tiger", "bear"]), insert_opts: River::InsertOpts.new(max_attempts: 5)),
+  River::InsertManyParams.new(SortArgs.new(strings: ["lion", "dolphin", "eagle"]), insert_opts: River::InsertOpts.new(queue: "high_priority"))
 ])
 ```
 
