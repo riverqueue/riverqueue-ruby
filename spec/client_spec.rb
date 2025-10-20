@@ -174,7 +174,7 @@ RSpec.describe River::Client do
         client.insert(SimpleArgs.new(job_num: 1), insert_opts: River::InsertOpts.new(
           tags: ["no,commas,allowed"]
         ))
-      end.to raise_error(ArgumentError, 'tag should match regex /\A[\w][\w\-]+[\w]\z/')
+      end.to raise_error(ArgumentError, 'tag should match regex /\A\w[\w-]+\w\z/')
     end
 
     def check_bigint_bounds(int)

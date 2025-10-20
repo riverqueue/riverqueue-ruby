@@ -10,7 +10,7 @@ file_data = File.read(file)
 
 version = version[1..] # strip `v` from the beginning of the string
 
-updated_file_data = file_data.gsub(%r{^(\W+)s\.version = "[\d\.]+"$}, %(\\1s.version = "#{version}"))
+updated_file_data = file_data.gsub(%r{^(\W+)s\.version = "[\d.]+"$}, %(\\1s.version = "#{version}"))
 
 abort("failure: nothing changed in file") if file_data == updated_file_data
 
