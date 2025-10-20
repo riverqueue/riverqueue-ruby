@@ -249,7 +249,7 @@ module River
       [int].pack("Q").unpack1("q") #: Integer # rubocop:disable Layout/LeadingCommentSpace
     end
 
-    TAG_RE = /\A[\w][\w\-]+[\w]\z/
+    TAG_RE = /\A\w[\w-]+\w\z/
     private_constant :TAG_RE
 
     private def validate_tags(tags)
