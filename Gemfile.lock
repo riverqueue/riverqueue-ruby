@@ -1,12 +1,12 @@
 PATH
   remote: .
   specs:
-    riverqueue (0.9.0)
+    riverqueue (0.9.1)
 
 PATH
   remote: driver/riverqueue-sequel
   specs:
-    riverqueue-sequel (0.9.0)
+    riverqueue-sequel (0.9.1)
       pg (> 0, < 1000)
       sequel (> 0, < 1000)
 

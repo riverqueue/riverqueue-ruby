@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = "riverqueue-activerecord"
-  s.version = "0.9.0"
+  s.version = "0.9.1"
   s.summary = "ActiveRecord driver for the River Ruby gem."
   s.description = "ActiveRecord driver for the River Ruby gem. Use in conjunction with the riverqueue gem to insert jobs that are worked in Go."
   s.authors = ["Blake Gentry", "Brandur Leach"]
