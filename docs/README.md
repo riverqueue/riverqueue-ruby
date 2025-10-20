@@ -17,7 +17,6 @@ Initialize a client with:
 require "riverqueue"
 require "riverqueue-activerecord"
 
-DB = Sequel.connect("postgres://...")
 client = River::Client.new(River::Driver::ActiveRecord.new)
 ```
 
@@ -33,7 +32,7 @@ class SortArgs
 
   def kind = "sort"
 
-  def to_json = JSON.dump({strings: strings})
+  def to_json = JSON.dump({ strings: strings })
 end
 
 insert_res = client.insert(SortArgs.new(strings: ["whale", "tiger", "bear"]))
@@ -126,7 +125,7 @@ end
 
 ```ruby
 insert_res = client.insert(River::JobArgsHash.new("hash_kind", {
-    job_num: 1
+  job_num: 1
 }))
 ```
 
