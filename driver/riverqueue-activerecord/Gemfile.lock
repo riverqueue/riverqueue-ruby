@@ -56,12 +56,14 @@ GEM
     language_server-protocol (3.17.0.3)
     lint_roller (1.1.0)
     logger (1.6.4)
-    minitest (5.25.4)
+    minitest (6.0.0)
+      prism (~> 1.5)
     parallel (1.26.3)
     parser (3.3.6.0)
       ast (~> 2.4.1)
       racc
     pg (1.5.9)
+    prism (1.7.0)
     psych (5.2.2)
       date
       stringio
@@ -119,7 +121,7 @@ GEM
       concurrent-ruby (~> 1.0)
     unicode-display_width (3.1.2)
       unicode-emoji (~> 4.0, >= 4.0.4)
-    unicode-emoji (4.0.4)
+    unicode-emoji (4.2.0)
     uri (1.0.2)
 
 PLATFORMS
