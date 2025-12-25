@@ -129,7 +129,7 @@ module River
 
       @driver.job_insert_many(all_params)
         .map do |job, unique_skipped_as_duplicate|
-        InsertResult.new(job, unique_skipped_as_duplicated: unique_skipped_as_duplicate)
+          InsertResult.new(job, unique_skipped_as_duplicated: unique_skipped_as_duplicate)
       end
     end
 
