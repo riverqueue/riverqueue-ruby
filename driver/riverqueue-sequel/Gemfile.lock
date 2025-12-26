@@ -72,7 +72,7 @@ GEM
       rubocop-performance (~> 1.23.0)
     unicode-display_width (3.1.2)
       unicode-emoji (~> 4.0, >= 4.0.4)
-    unicode-emoji (4.0.4)
+    unicode-emoji (4.2.0)
 
 PLATFORMS
   arm64-darwin-22
