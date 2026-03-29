@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-05-29
+
+### Changed
+
+- Upgrade to Ruby 4.0. [PR #53](https://github.com/riverqueue/riverqueue-ruby/pull/53).
+
 ## [0.9.1] - 2025-10-21
 
 ### Changed
