@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.10.0] - 2026-05-29
+## [0.10.1] - 2026-04-09
+
+### Fixed
+
+- Fix ActiveRecord JSONB args. [PR #60](https://github.com/riverqueue/riverqueue-ruby/pull/60).
+
+## [0.10.0] - 2026-03-29
 
 ### Changed
 
