@@ -9,6 +9,21 @@ RSpec.describe River::Driver::Sequel do
 
   it_behaves_like "driver shared examples"
 
+  describe "client inserts" do
+    it "persists args as a JSON object rather than a JSON string" do
+      insert_res = client.insert(SimpleArgs.new(job_num: 1))
+
+      row = DB.fetch(<<~SQL, insert_res.job.id).first
+        SELECT args, jsonb_typeof(args) AS args_type
+        FROM river_job
+        WHERE id = ?
+      SQL
+
+      expect(row[:args_type]).to eq("object")
+      expect(row[:args].to_h).to eq({"job_num" => 1})
+    end
+  end
+
   describe "#to_job_row" do
     it "converts a database record to `River::JobRow` with minimal properties" do
       river_job = DB[:river_job].returning.insert_select({

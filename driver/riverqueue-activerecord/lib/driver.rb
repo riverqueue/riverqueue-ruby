@@ -71,7 +71,7 @@ module River::Driver
 
     private def insert_params_to_hash(insert_params)
       {
-        args: insert_params.encoded_args,
+        args: JSON.parse(insert_params.encoded_args),
         kind: insert_params.kind,
         max_attempts: insert_params.max_attempts,
         priority: insert_params.priority,
@@ -91,7 +91,7 @@ module River::Driver
 
       River::JobRow.new(
         id: river_job.id,
-        args: JSON.parse(river_job.args),
+        args: river_job.args,
         attempt: river_job.attempt,
         attempted_at: river_job.attempted_at&.getutc,
         attempted_by: river_job.attempted_by,
@@ -153,7 +153,7 @@ module River::Driver
       [
         River::JobRow.new(
           id: river_job["id"],
-          args: JSON.parse(river_job["args"]),
+          args: river_job["args"],
           attempt: river_job["attempt"],
           attempted_at: river_job["attempted_at"]&.getutc,
           attempted_by: river_job["attempted_by"],

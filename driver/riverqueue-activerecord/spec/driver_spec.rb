@@ -15,11 +15,26 @@ RSpec.describe River::Driver::ActiveRecord do
 
   it_behaves_like "driver shared examples"
 
+  describe "client inserts" do
+    it "persists args as a JSON object rather than a JSON string" do
+      insert_res = client.insert(SimpleArgs.new(job_num: 1))
+
+      row = ActiveRecord::Base.connection.exec_query(<<~SQL).first
+        SELECT args, jsonb_typeof(args) AS args_type
+        FROM river_job
+        WHERE id = #{insert_res.job.id}
+      SQL
+
+      expect(row["args_type"]).to eq("object")
+      expect(JSON.parse(row["args"])).to eq({"job_num" => 1})
+    end
+  end
+
   describe "#to_job_row_from_model" do
     it "converts a database record to `River::JobRow` with minimal properties" do
       river_job = River::Driver::ActiveRecord::RiverJob.create(
         id: 1,
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT,
         priority: River::PRIORITY_DEFAULT,
@@ -56,7 +71,7 @@ RSpec.describe River::Driver::ActiveRecord do
         attempted_at: now,
         attempted_by: ["client1"],
         created_at: now,
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         finalized_at: now,
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT,
@@ -93,7 +108,7 @@ RSpec.describe River::Driver::ActiveRecord do
     it "with errors" do
       now = Time.now.utc
       river_job = River::Driver::ActiveRecord::RiverJob.create(
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         errors: [JSON.dump(
           {
             at: now,
@@ -124,7 +139,7 @@ RSpec.describe River::Driver::ActiveRecord do
     it "converts a database record to `River::JobRow` with minimal properties" do
       res = River::Driver::ActiveRecord::RiverJob.insert({
         id: 1,
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT
       }, returning: Arel.sql("*, false AS unique_skipped_as_duplicate"))
@@ -159,7 +174,7 @@ RSpec.describe River::Driver::ActiveRecord do
         attempted_at: now,
         attempted_by: ["client1"],
         created_at: now,
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         finalized_at: now,
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT,
@@ -197,7 +212,7 @@ RSpec.describe River::Driver::ActiveRecord do
     it "with errors" do
       now = Time.now.utc
       res = River::Driver::ActiveRecord::RiverJob.insert({
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         errors: [JSON.dump(
           {
             at: now,
