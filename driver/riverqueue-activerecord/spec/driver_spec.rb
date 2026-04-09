@@ -34,7 +34,7 @@ RSpec.describe River::Driver::ActiveRecord do
     it "converts a database record to `River::JobRow` with minimal properties" do
       river_job = River::Driver::ActiveRecord::RiverJob.create(
         id: 1,
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT,
         priority: River::PRIORITY_DEFAULT,
@@ -71,7 +71,7 @@ RSpec.describe River::Driver::ActiveRecord do
         attempted_at: now,
         attempted_by: ["client1"],
         created_at: now,
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         finalized_at: now,
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT,
@@ -108,7 +108,7 @@ RSpec.describe River::Driver::ActiveRecord do
     it "with errors" do
       now = Time.now.utc
       river_job = River::Driver::ActiveRecord::RiverJob.create(
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         errors: [JSON.dump(
           {
             at: now,
@@ -139,7 +139,7 @@ RSpec.describe River::Driver::ActiveRecord do
     it "converts a database record to `River::JobRow` with minimal properties" do
       res = River::Driver::ActiveRecord::RiverJob.insert({
         id: 1,
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT
       }, returning: Arel.sql("*, false AS unique_skipped_as_duplicate"))
@@ -174,7 +174,7 @@ RSpec.describe River::Driver::ActiveRecord do
         attempted_at: now,
         attempted_by: ["client1"],
         created_at: now,
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         finalized_at: now,
         kind: "simple",
         max_attempts: River::MAX_ATTEMPTS_DEFAULT,
@@ -212,7 +212,7 @@ RSpec.describe River::Driver::ActiveRecord do
     it "with errors" do
       now = Time.now.utc
       res = River::Driver::ActiveRecord::RiverJob.insert({
-        args: %({"job_num":1}),
+        args: {"job_num" => 1},
         errors: [JSON.dump(
           {
             at: now,

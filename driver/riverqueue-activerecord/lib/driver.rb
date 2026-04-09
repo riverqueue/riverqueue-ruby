@@ -91,7 +91,7 @@ module River::Driver
 
       River::JobRow.new(
         id: river_job.id,
-        args: deserialize_json(river_job.args),
+        args: river_job.args,
         attempt: river_job.attempt,
         attempted_at: river_job.attempted_at&.getutc,
         attempted_by: river_job.attempted_by,
@@ -153,7 +153,7 @@ module River::Driver
       [
         River::JobRow.new(
           id: river_job["id"],
-          args: deserialize_json(river_job["args"]),
+          args: river_job["args"],
           attempt: river_job["attempt"],
           attempted_at: river_job["attempted_at"]&.getutc,
           attempted_by: river_job["attempted_by"],
@@ -173,9 +173,6 @@ module River::Driver
         ),
         river_job["unique_skipped_as_duplicate"]
       ]
-    end
-    private def deserialize_json(value)
-      value.is_a?(String) ? JSON.parse(value) : value
     end
   end
 end
