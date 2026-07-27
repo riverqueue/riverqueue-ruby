@@ -17,7 +17,7 @@ GEM
     bigdecimal (4.1.0)
     diff-lcs (1.6.2)
     docile (1.4.1)
-    json (2.19.3)
+    json (2.19.9)
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     parallel (1.27.0)
