@@ -1,0 +1,31 @@
+# frozen_string_literal: true
+
+require "spec_helper"
+require_relative "../../../spec/support/client_test_database"
+require_relative "../../../spec/client_driver_shared_examples"
+require_relative "../../../spec/worker_process_shared_examples"
+
+RSpec.describe "ActiveRecord client integration" do
+  [:postgres, :sqlite].each do |adapter|
+    context "with #{adapter}" do
+      before { skip "PostgreSQL unavailable" if adapter == :postgres && !PG_AVAILABLE }
+
+      around do |example|
+        if adapter == :postgres && !PG_AVAILABLE
+          example.run
+        else
+          ClientTestDatabase.with_active_record(adapter) do |driver|
+            @driver = driver
+            example.run
+          end
+        end
+      end
+
+      it_behaves_like "client driver end to end"
+      it_behaves_like "SQL scheduling concurrency" if adapter == :postgres
+      it_behaves_like "PostgreSQL finalized job list plans" if adapter == :postgres
+      it_behaves_like "PostgreSQL rescue concurrency" if adapter == :postgres
+      it_behaves_like "dedicated worker process"
+    end
+  end
+end

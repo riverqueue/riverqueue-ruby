@@ -2,6 +2,10 @@ PATH
   remote: ../..
   specs:
     riverqueue (0.11.0)
+      logger (> 0, < 1000)
+      optparse (> 0, < 1000)
+      securerandom (> 0, < 1000)
+      timeout (> 0, < 1000)
 
 PATH
   remote: .
@@ -9,6 +13,7 @@ PATH
     riverqueue-activerecord (0.11.0)
       activerecord (> 0, < 1000)
       activesupport (> 0, < 1000)
+      riverqueue (= 0.11.0)
 
 GEM
   remote: https://rubygems.org/
@@ -60,6 +65,7 @@ GEM
     minitest (6.0.2)
       drb (~> 2.0)
       prism (~> 1.5)
+    optparse (0.8.1)
     parallel (1.27.0)
     parser (3.3.11.1)
       ast (~> 2.4.1)
@@ -157,4 +163,4 @@ DEPENDENCIES
   standard
 
 BUNDLED WITH
-   2.4.20
+   4.0.9

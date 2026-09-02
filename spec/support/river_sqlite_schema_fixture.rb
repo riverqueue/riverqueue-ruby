@@ -1,8 +1,21 @@
-# A snapshot of the river_job and river_notification schema after River's
-# SQLite main migration 007. These are the only tables exercised by this
-# insert-only client. Production databases must use River's migrations.
+# frozen_string_literal: true
+
+# A snapshot of River's complete SQLite schema after main migration 007.
+# Production databases must use River's migrations; schema creation belongs in
+# test support here so Ruby and Go never develop competing migration histories.
 module RiverSQLiteSchemaFixture
   SCHEMA = <<~SQL
+    CREATE TABLE river_migration (
+      line text NOT NULL,
+      version integer NOT NULL,
+      created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT line_length CHECK (length(line) > 0 AND length(line) < 128),
+      CONSTRAINT version_gte_1 CHECK (version >= 1),
+      PRIMARY KEY (line, version)
+    );
+
+    INSERT INTO river_migration (line, version) VALUES ('main', 7);
+
     CREATE TABLE river_job (
       id integer PRIMARY KEY,
       args blob NOT NULL DEFAULT (jsonb('{}')),
@@ -51,6 +64,23 @@ module RiverSQLiteSchemaFixture
           WHEN 'scheduled' THEN unique_states & (1 << 7)
           ELSE 0
         END >= 1;
+
+    CREATE TABLE river_leader (
+      elected_at timestamp NOT NULL,
+      expires_at timestamp NOT NULL,
+      leader_id text NOT NULL,
+      name text PRIMARY KEY NOT NULL DEFAULT 'default' CHECK (name = 'default'),
+      CONSTRAINT name_length CHECK (length(name) > 0 AND length(name) < 128),
+      CONSTRAINT leader_id_length CHECK (length(leader_id) > 0 AND length(leader_id) < 128)
+    );
+
+    CREATE TABLE river_queue (
+      name text PRIMARY KEY NOT NULL,
+      created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      metadata blob NOT NULL DEFAULT (jsonb('{}')),
+      paused_at timestamp,
+      updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
 
     CREATE TABLE river_notification (
       id integer PRIMARY KEY AUTOINCREMENT,

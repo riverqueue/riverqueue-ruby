@@ -1,10 +1,14 @@
+# frozen_string_literal: true
+
 require "spec_helper"
 
 describe River::JobArgsHash do
   it "generates a job args based on a hash" do
     args = River::JobArgsHash.new("my_hash_kind", {job_num: 123})
-    expect(args.kind).to eq("my_hash_kind")
-    expect(args.to_json).to eq(JSON.dump({job_num: 123}))
+    expect(args).to have_attributes(
+      kind: "my_hash_kind",
+      to_json: JSON.dump({job_num: 123})
+    )
   end
 
   it "errors on a nil kind" do
@@ -30,6 +34,7 @@ describe River::AttemptError do
       error: "job failure",
       trace: "error trace"
     )
+
     expect(attempt_error).to have_attributes(
       at: now,
       attempt: 1,

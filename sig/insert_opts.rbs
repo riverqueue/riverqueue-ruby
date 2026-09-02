@@ -1,22 +1,24 @@
 module River
   class InsertOpts
     attr_accessor max_attempts: Integer?
+    attr_accessor metadata: Hash[String | Symbol, untyped]?
     attr_accessor priority: Integer?
-    attr_accessor queue: String?
+    attr_accessor queue: (String | Symbol)?
     attr_accessor scheduled_at: Time?
+    attr_accessor state: jobStateInput?
     attr_accessor tags: Array[String]?
     attr_accessor unique_opts: UniqueOpts?
 
-    def initialize: (?max_attempts: Integer?, ?priority: Integer?, ?queue: String?, ?scheduled_at: Time?, ?tags: Array[String]?, ?unique_opts: UniqueOpts?) -> void
+    def initialize: (?max_attempts: Integer?, ?metadata: Hash[String | Symbol, untyped]?, ?priority: Integer?, ?queue: (String | Symbol)?, ?scheduled_at: Time?, ?state: jobStateInput?, ?tags: Array[String]?, ?unique_opts: UniqueOpts?) -> void
   end
 
   class UniqueOpts
-    attr_accessor by_args: bool? | Array[String]?
+    attr_accessor by_args: bool? | Array[String | Symbol]?
     attr_accessor by_period: Integer?
     attr_accessor by_queue: bool?
-    attr_accessor by_state: Array[jobStateAll]?
+    attr_accessor by_state: Array[jobStateInput]?
     attr_accessor exclude_kind: bool?
 
-    def initialize: (?by_args: bool? | Array[String]?, ?by_period: Integer?, ?by_queue: bool?, ?by_state: Array[jobStateAll]?, ?exclude_kind: bool?) -> void
+    def initialize: (?by_args: bool? | Array[String | Symbol]?, ?by_period: Integer?, ?by_queue: bool?, ?by_state: Array[jobStateInput]?, ?exclude_kind: bool?) -> void
   end
 end

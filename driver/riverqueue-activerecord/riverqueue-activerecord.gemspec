@@ -1,15 +1,18 @@
+# frozen_string_literal: true
+
 Gem::Specification.new do |s|
   s.name = "riverqueue-activerecord"
   s.version = "0.11.0"
   s.summary = "ActiveRecord PostgreSQL and SQLite driver for the River Ruby gem."
-  s.description = "ActiveRecord PostgreSQL and SQLite driver for the River Ruby gem. Use in conjunction with the riverqueue gem to insert jobs that are worked in Go."
+  s.description = "ActiveRecord PostgreSQL and SQLite driver for inserting and working River jobs in Ruby."
   s.authors = ["Blake Gentry", "Brandur Leach"]
   s.email = "brandur@brandur.org"
   s.files = Dir.glob("lib/**/*")
   s.homepage = "https://riverqueue.com"
-  s.license = "LGPL-3.0-or-later"
-
+  s.license = "MPL-2.0"
+  s.required_ruby_version = ">= 3.2"
   # The stupid version bounds are used to silence Ruby's extremely obnoxious warnings.
   s.add_dependency "activerecord", "> 0", "< 1000"
   s.add_dependency "activesupport", "> 0", "< 1000" # required for ActiveRecord to load properly
+  s.add_dependency "riverqueue", "= 0.11.0"
 end
