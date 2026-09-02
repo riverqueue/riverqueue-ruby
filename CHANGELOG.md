@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-02
+
 ### Added
 
 - Add SQLite support to the ActiveRecord and Sequel drivers, including current River JSONB storage, atomic bulk inserts, unique jobs, and notification-outbox writes. [PR #67](https://github.com/riverqueue/riverqueue-ruby/pull/67).

@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = "riverqueue-activerecord"
-  s.version = "0.10.1"
+  s.version = "0.11.0"
   s.summary = "ActiveRecord PostgreSQL and SQLite driver for the River Ruby gem."
   s.description = "ActiveRecord PostgreSQL and SQLite driver for the River Ruby gem. Use in conjunction with the riverqueue gem to insert jobs that are worked in Go."
   s.authors = ["Blake Gentry", "Brandur Leach"]
