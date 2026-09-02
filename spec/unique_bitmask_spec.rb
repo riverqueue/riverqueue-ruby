@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "spec_helper"
 require_relative "../driver/riverqueue-sequel/spec/spec_helper"
 

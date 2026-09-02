@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module River
   # Options for job insertion, and which can be provided by implementing
   # #insert_opts on job args, or specified as a parameter on #insert or
@@ -6,6 +8,10 @@ module River
     # The maximum number of total attempts (including both the original run and
     # all retries) before a job is abandoned and set as discarded.
     attr_accessor :max_attempts
+
+    # Arbitrary metadata to merge into the persisted job. River and River Pro
+    # reserve keys prefixed with `river:` and workflow metadata keys.
+    attr_accessor :metadata
 
     # The priority of the job, with 1 being the highest priority and 4 being the
     # lowest. When fetching available jobs to work, the highest priority jobs
@@ -16,7 +22,7 @@ module River
     # Defaults to PRIORITY_DEFAULT.
     attr_accessor :priority
 
-    # The name of the job queue in which to insert the job.
+    # The name of the job queue in which to insert the job, as a symbol or string.
     #
     # Defaults to QUEUE_DEFAULT.
     attr_accessor :queue
@@ -31,6 +37,10 @@ module River
     # it will work in both cases.
     attr_accessor :scheduled_at
 
+    # Initial state. Primarily intended for extensions such as workflows and
+    # sequences, which insert blocked jobs as `:pending`. Accepts symbols or strings.
+    attr_accessor :state
+
     # An arbitrary list of keywords to add to the job. They have no functional
     # behavior and are meant entirely as a user-specified construct to help
     # group and categorize jobs.
@@ -43,18 +53,23 @@ module River
     # is never treated as unique.
     attr_accessor :unique_opts
 
+    # Creates options that override the defaults for a single job insertion.
     def initialize(
       max_attempts: nil,
+      metadata: nil,
       priority: nil,
       queue: nil,
       scheduled_at: nil,
+      state: nil,
       tags: nil,
       unique_opts: nil
     )
       self.max_attempts = max_attempts
+      self.metadata = metadata
       self.priority = priority
       self.queue = queue
       self.scheduled_at = scheduled_at
+      self.state = state
       self.tags = tags
       self.unique_opts = unique_opts
     end
@@ -62,9 +77,10 @@ module River
 
   # Parameters for uniqueness for a job.
   #
-  # If all properties are nil, no uniqueness at is enforced. As each property is
+  # If all properties are nil, no uniqueness is enforced. As each property is
   # initialized, it's added as a dimension on the uniqueness matrix, and with
-  # any property on, the job's kind always counts toward uniqueness.
+  # any property on, the job's kind counts toward uniqueness unless #exclude_kind
+  # is enabled.
   #
   # So for example, if only #by_queue is on, then for the given job kind, only a
   # single instance is allowed in any given queue, regardless of other
@@ -73,17 +89,24 @@ module River
   # and queues. If either args or queue is changed on a new job, it's allowed to
   # be inserted as a new job.
   class UniqueOpts
+    # Empty options don't enable uniqueness. Zero periods and empty state lists
+    # have the same meaning as their unset equivalents in the Go client.
+    def empty?
+      !by_args && !by_queue && !exclude_kind && (!by_period || by_period == 0) && (!by_state || by_state.empty?)
+    end
+
     # Indicates that uniqueness should be enforced for any specific instance of
-    # encoded args for a job.
+    # encoded args for a job. An array of symbol or string keys selects only
+    # those top-level arguments. Nested arrays select paths, for example
+    # +by_args: [[:account, :id], :label]+. Dots in a string key are literal.
     #
     # Default is false, meaning that as long as any other unique property is
     # enabled, uniqueness will be enforced for a kind regardless of input args.
     attr_accessor :by_args
 
-    # Defines uniqueness within a given period. On an insert time is rounded
-    # down to the nearest multiple of the given period, and a job is only
-    # inserted if there isn't an existing job that will run between then and the
-    # next multiple of the period.
+    # Defines uniqueness within a given period. The effective scheduled time
+    # (or current time for unscheduled jobs) is rounded down to a period boundary
+    # in UTC. Equivalent times in different zones produce the same unique key.
     #
     # The period should be specified in seconds. So a job that's unique every 15
     # minute period would have a value of 900.
@@ -108,21 +131,27 @@ module River
     # Unlike other unique options, ByState gets a default when it's not set for
     # user convenience. The default is equivalent to:
     #
-    #   by_state: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_COMPLETED, River::JOB_STATE_PENDING, River::JOB_STATE_RUNNING, River::JOB_STATE_RETRYABLE, River::JOB_STATE_SCHEDULED]
+    #   by_state: %i[available completed pending running retryable scheduled]
     #
-    # With this setting, any jobs of the same kind that have been completed or
+    # With this setting, any jobs of the same kind that have been cancelled or
     # discarded, but not yet cleaned out by the system, won't count towards the
     # uniqueness of a new insert.
     #
     # The pending, scheduled, available, and running states are required when
-    # customizing this list.
+    # customizing this list. State names accept symbols or strings.
     attr_accessor :by_state
 
     # Indicates that the job kind should not be considered for uniqueness. This
     # is useful when you want to enforce uniqueness based on other properties
     # across multiple worker types.
+    #
+    # Requires #by_args, #by_queue, or a nonzero #by_period. Otherwise every job
+    # would share the same key, so insertion raises ArgumentError. #by_state
+    # alone does not supply a key dimension.
     attr_accessor :exclude_kind
 
+    # Creates a set of dimensions used to determine whether an inserted job is
+    # unique.
     def initialize(
       by_args: nil,
       by_period: nil,

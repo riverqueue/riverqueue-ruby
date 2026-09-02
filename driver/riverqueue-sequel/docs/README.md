@@ -2,15 +2,13 @@
 
 [Sequel](https://sequel.jeremyevans.net/) driver for [River](https://github.com/riverqueue/river)'s [`riverqueue` gem for Ruby](https://rubygems.org/gems/riverqueue). PostgreSQL and SQLite are supported.
 
-Add the core gem and this driver to `Gemfile`:
+Add this driver and only the database adapter used by the application to
+`Gemfile`. The driver pulls in the core gem:
 
 ```ruby
-gem "riverqueue"
 gem "riverqueue-sequel"
+gem "pg" # or: gem "sqlite3"
 ```
-
-Database adapters are optional dependencies. Add only the adapter used by your
-application.
 
 For PostgreSQL, add `pg` to `Gemfile`:
 
@@ -39,6 +37,9 @@ client = River::Client.new(River::Driver::Sequel.new(db))
 ```
 
 Use current River migrations to create and update the SQLite database.
+
+YugabyteDB is supported through the PostgreSQL adapter, with automatic capability
+detection. See [YugabyteDB setup and behavior](../../../docs/yugabyte.md).
 
 ## Development
 

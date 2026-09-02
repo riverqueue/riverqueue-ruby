@@ -1,17 +1,7 @@
+# frozen_string_literal: true
+
 module River
   class UniqueBitmask
-    JOB_STATE_BIT_POSITIONS = {
-      ::River::JOB_STATE_AVAILABLE => 7,
-      ::River::JOB_STATE_CANCELLED => 6,
-      ::River::JOB_STATE_COMPLETED => 5,
-      ::River::JOB_STATE_DISCARDED => 4,
-      ::River::JOB_STATE_PENDING => 3,
-      ::River::JOB_STATE_RETRYABLE => 2,
-      ::River::JOB_STATE_RUNNING => 1,
-      ::River::JOB_STATE_SCHEDULED => 0
-    }.freeze
-    private_constant :JOB_STATE_BIT_POSITIONS
-
     def self.from_states(states)
       val = 0
 
@@ -37,5 +27,17 @@ module River
 
       states.sort
     end
+
+    JOB_STATE_BIT_POSITIONS = {
+      ::River::JOB_STATE_AVAILABLE => 7,
+      ::River::JOB_STATE_CANCELLED => 6,
+      ::River::JOB_STATE_COMPLETED => 5,
+      ::River::JOB_STATE_DISCARDED => 4,
+      ::River::JOB_STATE_PENDING => 3,
+      ::River::JOB_STATE_RETRYABLE => 2,
+      ::River::JOB_STATE_RUNNING => 1,
+      ::River::JOB_STATE_SCHEDULED => 0
+    }.freeze
+    private_constant :JOB_STATE_BIT_POSITIONS
   end
 end

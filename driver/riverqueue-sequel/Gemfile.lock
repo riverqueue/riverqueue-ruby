@@ -2,11 +2,16 @@ PATH
   remote: ../..
   specs:
     riverqueue (0.11.0)
+      logger (> 0, < 1000)
+      optparse (> 0, < 1000)
+      securerandom (> 0, < 1000)
+      timeout (> 0, < 1000)
 
 PATH
   remote: .
   specs:
     riverqueue-sequel (0.11.0)
+      riverqueue (= 0.11.0)
       sequel (> 0, < 1000)
 
 GEM
@@ -19,6 +24,8 @@ GEM
     json (2.19.9)
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
+    logger (1.7.0)
+    optparse (0.8.1)
     parallel (1.27.0)
     parser (3.3.11.1)
       ast (~> 2.4.1)
@@ -54,6 +61,7 @@ GEM
       rubocop (>= 1.75.0, < 2.0)
       rubocop-ast (>= 1.47.1, < 2.0)
     ruby-progressbar (1.13.0)
+    securerandom (0.4.1)
     sequel (5.102.0)
       bigdecimal
     simplecov (0.22.0)
@@ -76,6 +84,7 @@ GEM
     standard-performance (1.9.0)
       lint_roller (~> 1.1)
       rubocop-performance (~> 1.26.0)
+    timeout (0.6.1)
     unicode-display_width (3.2.0)
       unicode-emoji (~> 4.1)
     unicode-emoji (4.2.0)
@@ -98,4 +107,4 @@ DEPENDENCIES
   standard
 
 BUNDLED WITH
-   2.4.20
+   4.0.9
