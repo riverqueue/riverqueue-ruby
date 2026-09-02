@@ -1,12 +1,12 @@
 PATH
   remote: .
   specs:
-    riverqueue (0.10.1)
+    riverqueue (0.11.0)
 
 PATH
   remote: driver/riverqueue-sequel
   specs:
-    riverqueue-sequel (0.10.1)
+    riverqueue-sequel (0.11.0)
       sequel (> 0, < 1000)
 
 GEM
