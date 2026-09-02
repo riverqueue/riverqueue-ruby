@@ -1,22 +1,44 @@
-#  riverqueue-sequel [![Build Status](https://github.com/riverqueue/riverqueue-ruby-sequel/workflows/CI/badge.svg)](https://github.com/riverqueue/riverqueue-ruby-sequel/actions)
+# riverqueue-sequel
 
-[Sequel](https://github.com/jeremyevans/sequel) driver for [River](https://github.com/riverqueue/river)'s [`riverqueue` gem for Ruby](https://rubygems.org/gems/riverqueue).
+[Sequel](https://sequel.jeremyevans.net/) driver for [River](https://github.com/riverqueue/river)'s [`riverqueue` gem for Ruby](https://rubygems.org/gems/riverqueue). PostgreSQL and SQLite are supported.
 
-`Gemfile` should contain the core gem and a driver like this one:
+Add the core gem and this driver to `Gemfile`:
 
-``` yaml
+```ruby
 gem "riverqueue"
 gem "riverqueue-sequel"
 ```
 
-Initialize a client with:
+Database adapters are optional dependencies. Add only the adapter used by your
+application.
+
+For PostgreSQL, add `pg` to `Gemfile`:
 
 ```ruby
-DB = Sequel.connect("postgres://...")
-client = River::Client.new(River::Driver::Sequel.new(DB))
+gem "pg"
 ```
 
-See also [`rubyqueue`](https://github.com/riverqueue/riverqueue-ruby).
+Then initialize a client with a Sequel database:
+
+```ruby
+db = Sequel.connect("postgres://localhost/my_app")
+client = River::Client.new(River::Driver::Sequel.new(db))
+```
+
+For SQLite, add `sqlite3` to `Gemfile`:
+
+```ruby
+gem "sqlite3"
+```
+
+Then initialize a client with an SQLite database:
+
+```ruby
+db = Sequel.connect("sqlite://storage/river.sqlite3", timeout: 5_000)
+client = River::Client.new(River::Driver::Sequel.new(db))
+```
+
+Use current River migrations to create and update the SQLite database.
 
 ## Development
 

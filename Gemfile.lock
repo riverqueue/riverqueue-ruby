@@ -7,7 +7,6 @@ PATH
   remote: driver/riverqueue-sequel
   specs:
     riverqueue-sequel (0.10.1)
-      pg (> 0, < 1000)
       sequel (> 0, < 1000)
 
 GEM
@@ -125,6 +124,8 @@ GEM
       simplecov_json_formatter (~> 0.1)
     simplecov-html (0.13.2)
     simplecov_json_formatter (0.1.4)
+    sqlite3 (2.9.6-arm64-darwin)
+    sqlite3 (2.9.6-x86_64-linux-gnu)
     standard (1.54.0)
       language_server-protocol (~> 3.17.0.2)
       lint_roller (~> 1.0)
@@ -172,11 +173,13 @@ PLATFORMS
 
 DEPENDENCIES
   debug
+  pg
   riverqueue!
   riverqueue-sequel!
   rspec-core
   rspec-expectations
   simplecov
+  sqlite3
   standard
   steep
 

@@ -8,7 +8,9 @@ group :development, :test do
 end
 
 group :test do
+  gem "pg"
   gem "rspec-core"
   gem "rspec-expectations"
   gem "simplecov", require: false
+  gem "sqlite3"
 end

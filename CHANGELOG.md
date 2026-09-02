@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add SQLite support to the ActiveRecord and Sequel drivers, including current River JSONB storage, atomic bulk inserts, unique jobs, and notification-outbox writes. [PR #67](https://github.com/riverqueue/riverqueue-ruby/pull/67).
+
+### Changed
+
+- Stop pulling in `pg` as a hard dependency of either driver. Applications now select their database adapter by including `pg` for PostgreSQL or `sqlite3` for SQLite. [PR #67](https://github.com/riverqueue/riverqueue-ruby/pull/67).
+
 ## [0.10.1] - 2026-04-09
 
 ### Fixed
