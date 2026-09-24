@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "spec_helper"
 require_relative "../driver/riverqueue-sequel/spec/spec_helper"
 
@@ -48,14 +50,31 @@ end
 # whether we should maybe move all these tests into the common driver shared
 # examples so that all drivers get the full barrage.
 RSpec.describe River::Client do
-  around(:each) { |ex| test_transaction(&ex) }
+  around(:each) { |ex| available_test_transaction(&ex) }
 
-  let!(:driver) { River::Driver::Sequel.new(DB) }
+  let!(:driver) { River::Driver::Sequel.new(available_test_database) }
   let(:client) { River::Client.new(driver) }
 
   describe "#insert" do
+    it "normalizes symbolic kinds and argument-level options before calling plugins and drivers" do
+      args = SimpleArgsWithInsertOpts.new(job_num: 1)
+      def args.kind = :simple
+      args.insert_opts = River::InsertOpts.new(queue: :critical, state: :pending)
+      plugin = Object.new
+      observed = nil
+      plugin.define_singleton_method(:insert_begin) { |params| observed = [params.kind, params.queue, params.state] }
+      client = River::Client.new(driver, config: River::Config.new(plugins: [plugin]))
+
+      row = client.insert(args).job
+
+      expect(observed).to eq(%w[simple critical pending])
+      expect(row).to have_attributes(kind: "simple", queue: "critical", state: "pending")
+    end
+
     it "inserts a job with defaults" do
       insert_res = client.insert(SimpleArgs.new(job_num: 1))
+
+      expect(insert_res).to be_a(River::JobInsertResult)
       expect(insert_res.job).to have_attributes(
         args: {"job_num" => 1},
         attempt: 0,
@@ -77,6 +96,7 @@ RSpec.describe River::Client do
         SimpleArgs.new(job_num: 1),
         insert_opts: River::InsertOpts.new(scheduled_at: target_time)
       )
+
       expect(insert_res.job).to have_attributes(
         scheduled_at: be_within(2).of(target_time),
         state: River::JOB_STATE_SCHEDULED
@@ -96,6 +116,7 @@ RSpec.describe River::Client do
       )
 
       insert_res = client.insert(job_args)
+
       expect(insert_res.job).to have_attributes(
         max_attempts: 23,
         priority: 2,
@@ -121,6 +142,7 @@ RSpec.describe River::Client do
         queue: "my_queue",
         tags: ["custom"]
       ))
+
       expect(insert_res.job).to have_attributes(
         max_attempts: 17,
         priority: 3,
@@ -180,6 +202,7 @@ RSpec.describe River::Client do
     def check_bigint_bounds(int)
       raise "lock key shouldn't be larger than Postgres bigint max (9223372036854775807); was: #{int}" if int > 9223372036854775807
       raise "lock key shouldn't be smaller than Postgres bigint min (-9223372036854775808); was: #{int}" if int < -9223372036854775808
+
       int
     end
 
@@ -199,17 +222,26 @@ RSpec.describe River::Client do
         )
 
         insert_res = client.insert(job_args)
-        expect(insert_res.job).to_not be_nil
-        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        expect(insert_res).to have_attributes(
+          job: be_a(River::JobRow),
+          unique_skipped_as_duplicated: be(false)
+        )
 
         unique_key_str = "&kind=#{insert_res.job.kind}" \
           "&queue=#{River::QUEUE_DEFAULT}"
-        expect(insert_res.job.unique_key).to eq(Digest::SHA256.digest(unique_key_str))
-        expect(insert_res.job.unique_states).to eq([River::JOB_STATE_AVAILABLE, River::JOB_STATE_COMPLETED, River::JOB_STATE_PENDING, River::JOB_STATE_RETRYABLE, River::JOB_STATE_RUNNING, River::JOB_STATE_SCHEDULED])
+
+        expect(insert_res.job).to have_attributes(
+          unique_key: Digest::SHA256.digest(unique_key_str),
+          unique_states: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_COMPLETED, River::JOB_STATE_PENDING, River::JOB_STATE_RETRYABLE, River::JOB_STATE_RUNNING, River::JOB_STATE_SCHEDULED]
+        )
 
         insert_res = client.insert(job_args)
-        expect(insert_res.job).to_not be_nil
-        expect(insert_res.unique_skipped_as_duplicated).to be true
+
+        expect(insert_res).to have_attributes(
+          job: be_a(River::JobRow),
+          unique_skipped_as_duplicated: be(true)
+        )
       end
 
       it "inserts a new unique job with custom states" do
@@ -222,22 +254,30 @@ RSpec.describe River::Client do
         )
 
         insert_res = client.insert(job_args)
-        expect(insert_res.job).to_not be_nil
-        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        expect(insert_res).to have_attributes(
+          job: be_a(River::JobRow),
+          unique_skipped_as_duplicated: be(false)
+        )
 
         lock_str = "&kind=#{job_args.kind}" \
           "&queue=#{River::QUEUE_DEFAULT}"
 
-        expect(insert_res.job.unique_key).to eq(Digest::SHA256.digest(lock_str))
-        expect(insert_res.job.unique_states).to eq([River::JOB_STATE_AVAILABLE, River::JOB_STATE_PENDING, River::JOB_STATE_RUNNING, River::JOB_STATE_SCHEDULED])
+        expect(insert_res.job).to have_attributes(
+          unique_key: Digest::SHA256.digest(lock_str),
+          unique_states: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_PENDING, River::JOB_STATE_RUNNING, River::JOB_STATE_SCHEDULED]
+        )
 
         insert_res = client.insert(job_args)
-        expect(insert_res.job).to_not be_nil
-        expect(insert_res.unique_skipped_as_duplicated).to be true
+
+        expect(insert_res).to have_attributes(
+          job: be_a(River::JobRow),
+          unique_skipped_as_duplicated: be(true)
+        )
       end
 
       it "inserts a new unique job with all options" do
-        job_args = ComplexArgs.new(customer_id: 1, order_id: 2, trace_id: 3, email: "john@example.com")
+        job_args = ComplexArgs.new(customer_id: 1, email: "john@example.com", order_id: 2, trace_id: 3)
         insert_opts = River::InsertOpts.new(
           unique_opts: River::UniqueOpts.new(
             by_args: true,
@@ -249,50 +289,67 @@ RSpec.describe River::Client do
         )
 
         insert_res = client.insert(job_args, insert_opts: insert_opts)
-        expect(insert_res.job).to_not be_nil
-        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        expect(insert_res).to have_attributes(
+          job: be_a(River::JobRow),
+          unique_skipped_as_duplicated: be(false)
+        )
 
         sorted_json = {customer_id: 1, email: "john@example.com", order_id: 2, trace_id: 3}
         unique_key_str = "&args=#{JSON.dump(sorted_json)}" \
           "&period=#{client.send(:truncate_time, now, 15 * 60).utc.strftime("%FT%TZ")}" \
           "&queue=#{River::QUEUE_DEFAULT}"
-        expect(insert_res.job.unique_key).to eq(Digest::SHA256.digest(unique_key_str))
-        expect(insert_res.job.unique_states).to eq([River::JOB_STATE_AVAILABLE, River::JOB_STATE_CANCELLED, River::JOB_STATE_PENDING, River::JOB_STATE_RUNNING, River::JOB_STATE_SCHEDULED])
+
+        expect(insert_res.job).to have_attributes(
+          unique_key: Digest::SHA256.digest(unique_key_str),
+          unique_states: [River::JOB_STATE_AVAILABLE, River::JOB_STATE_CANCELLED, River::JOB_STATE_PENDING, River::JOB_STATE_RUNNING, River::JOB_STATE_SCHEDULED]
+        )
 
         insert_res = client.insert(job_args, insert_opts: insert_opts)
-        expect(insert_res.job).to_not be_nil
-        expect(insert_res.unique_skipped_as_duplicated).to be true
+
+        expect(insert_res).to have_attributes(
+          job: be_a(River::JobRow),
+          unique_skipped_as_duplicated: be(true)
+        )
       end
 
       it "inserts a new unique job with custom by_args" do
-        job_args = ComplexArgs.new(customer_id: 1, order_id: 2, trace_id: 3, email: "john@example.com")
+        job_args = ComplexArgs.new(customer_id: 1, email: "john@example.com", order_id: 2, trace_id: 3)
         insert_opts = River::InsertOpts.new(
           unique_opts: River::UniqueOpts.new(by_args: ["customer_id", "order_id"])
         )
 
         insert_res = client.insert(job_args, insert_opts: insert_opts)
-        expect(insert_res.job).to_not be_nil
-        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        expect(insert_res).to have_attributes(
+          job: be_a(River::JobRow),
+          unique_skipped_as_duplicated: be(false)
+        )
         original_job_id = insert_res.job.id
 
         unique_key_str = "&kind=complex&args=#{JSON.dump({customer_id: 1, order_id: 2})}"
+
         expect(insert_res.job.unique_key).to eq(Digest::SHA256.digest(unique_key_str))
 
         insert_res = client.insert(job_args, insert_opts: insert_opts)
+
         expect(insert_res.job).to_not be_nil
-        expect(insert_res.job.id).to eq(original_job_id)
-        expect(insert_res.unique_skipped_as_duplicated).to be true
+        expect(insert_res).to have_attributes(
+          job: have_attributes(id: original_job_id),
+          unique_skipped_as_duplicated: be(true)
+        )
 
         # Change just the customer ID and the job should be unique again.
         job_args.customer_id = 2
         insert_res = client.insert(job_args, insert_opts: insert_opts)
+
         expect(insert_res.job).to_not be_nil
         expect(insert_res.job.id).to_not eq(original_job_id)
         expect(insert_res.unique_skipped_as_duplicated).to be false
       end
 
       it "inserts a new unique job with period determined from `scheduled_at`" do
-        job_args = ComplexArgs.new(customer_id: 1, order_id: 2, trace_id: 3, email: "john@example.com")
+        job_args = ComplexArgs.new(customer_id: 1, email: "john@example.com", order_id: 2, trace_id: 3)
         insert_opts = River::InsertOpts.new(
           scheduled_at: now + 3600,
           unique_opts: River::UniqueOpts.new(
@@ -301,11 +358,15 @@ RSpec.describe River::Client do
         )
 
         insert_res = client.insert(job_args, insert_opts: insert_opts)
-        expect(insert_res.job).to_not be_nil
-        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        expect(insert_res).to have_attributes(
+          job: be_a(River::JobRow),
+          unique_skipped_as_duplicated: be(false)
+        )
 
         unique_key_str = "&kind=#{insert_res.job.kind}" \
           "&period=#{client.send(:truncate_time, now + 3600, 15 * 60).utc.strftime("%FT%TZ")}"
+
         expect(insert_res.job.unique_key).to eq(Digest::SHA256.digest(unique_key_str))
       end
 
@@ -316,8 +377,11 @@ RSpec.describe River::Client do
         )
 
         insert_res = client.insert(job_args)
-        expect(insert_res.job).to_not be_nil
-        expect(insert_res.unique_skipped_as_duplicated).to be false
+
+        expect(insert_res).to have_attributes(
+          job: be_a(River::JobRow),
+          unique_skipped_as_duplicated: be(false)
+        )
       end
 
       it "errors if any of the required unique states are removed from a custom by_states list" do
@@ -345,11 +409,13 @@ RSpec.describe River::Client do
         SimpleArgs.new(job_num: 1),
         SimpleArgs.new(job_num: 2)
       ])
+
       expect(results.length).to eq(2)
       expect(results[0].job).to have_attributes(args: {"job_num" => 1})
       expect(results[1].job).to have_attributes(args: {"job_num" => 2})
 
       jobs = driver.job_list
+
       expect(jobs.count).to be 2
 
       expect(jobs[0]).to have_attributes(
@@ -384,11 +450,13 @@ RSpec.describe River::Client do
         River::InsertManyParams.new(SimpleArgs.new(job_num: 1)),
         River::InsertManyParams.new(SimpleArgs.new(job_num: 2))
       ])
+
       expect(results.length).to eq(2)
       expect(results[0].job).to have_attributes(args: {"job_num" => 1})
       expect(results[1].job).to have_attributes(args: {"job_num" => 2})
 
       jobs = driver.job_list
+
       expect(jobs.count).to be 2
 
       expect(jobs[0]).to have_attributes(
@@ -430,6 +498,7 @@ RSpec.describe River::Client do
       )
 
       insert_res = client.insert(dupe_job_args)
+
       expect(insert_res.job).to_not be_nil
 
       # We set job insert opts in this spec too so that we can verify that the
@@ -478,16 +547,20 @@ RSpec.describe River::Client do
           )
         ))
       ])
+
       expect(results.length).to eq(3) # all rows returned, including skipped duplicates
       expect(results[0].job).to have_attributes(tags: ["custom_1"])
       expect(results[1].job).to have_attributes(tags: ["custom_2"])
-      expect(results[2].unique_skipped_as_duplicated).to be true
-      expect(results[2].job).to have_attributes(
-        id: insert_res.job.id,
-        tags: []
+      expect(results[2]).to have_attributes(
+        job: have_attributes(
+          id: insert_res.job.id,
+          tags: []
+        ),
+        unique_skipped_as_duplicated: (be true)
       )
 
       jobs = driver.job_list
+
       expect(jobs.count).to be 3
 
       expect(jobs[0]).to have_attributes(queue: "job_to_duplicate")
@@ -538,8 +611,11 @@ RSpec.describe River::InsertManyParams do
     job_args = SimpleArgs.new(job_num: 1)
 
     params = River::InsertManyParams.new(job_args)
-    expect(params.args).to eq(job_args)
-    expect(params.insert_opts).to be_nil
+
+    expect(params).to have_attributes(
+      args: job_args,
+      insert_opts: be_nil
+    )
   end
 
   it "initializes with insert opts" do
@@ -547,7 +623,10 @@ RSpec.describe River::InsertManyParams do
     insert_opts = River::InsertOpts.new(queue: "other")
 
     params = River::InsertManyParams.new(job_args, insert_opts: insert_opts)
-    expect(params.args).to eq(job_args)
-    expect(params.insert_opts).to eq(insert_opts)
+
+    expect(params).to have_attributes(
+      args: job_args,
+      insert_opts: insert_opts
+    )
   end
 end

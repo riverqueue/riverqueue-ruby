@@ -1,13 +1,18 @@
+# frozen_string_literal: true
+
 Gem::Specification.new do |s|
   s.name = "riverqueue"
   s.version = "0.11.0"
-  s.summary = "River is a fast job queue for Go."
-  s.description = "River is a fast job queue for Go. Use this gem in conjunction with gems riverqueue-activerecord or riverqueue-sequel to insert jobs in Ruby which will be worked from Go."
+  s.summary = "A fast, reliable job queue for Ruby backed by PostgreSQL or SQLite."
+  s.description = "Insert and work River jobs in Ruby using the same schema and state machine as River's Go client. Use with riverqueue-activerecord or riverqueue-sequel."
   s.authors = ["Blake Gentry", "Brandur Leach"]
   s.email = "brandur@brandur.org"
-  s.files = Dir.glob("lib/**/*")
+  s.files = Dir.glob("{exe,lib,migration,sig}/**/*") + ["CHANGELOG.md", "LICENSE", "docs/README.md", "docs/migrations.md", "docs/testing.md", "docs/workers.md"]
+  s.bindir = "exe"
+  s.executables = ["river"]
   s.homepage = "https://riverqueue.com"
-  s.license = "LGPL-3.0-or-later"
+  s.license = "MPL-2.0"
+  s.required_ruby_version = ">= 3.2"
   s.require_path = %(lib)
   s.metadata = {
     "bug_tracker_uri" => "https://github.com/riverqueue/riverqueue-ruby/issues",
@@ -15,4 +20,10 @@ Gem::Specification.new do |s|
     "rubygems_mfa_required" => "true",
     "source_code_uri" => "https://github.com/riverqueue/riverqueue-ruby"
   }
+
+  # Standard-library components distributed as gems on modern Ruby.
+  s.add_dependency "logger", "> 0", "< 1000"
+  s.add_dependency "optparse", "> 0", "< 1000"
+  s.add_dependency "securerandom", "> 0", "< 1000"
+  s.add_dependency "timeout", "> 0", "< 1000"
 end

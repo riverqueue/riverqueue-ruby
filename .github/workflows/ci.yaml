@@ -23,7 +23,43 @@ env:
 on:
   - push
 
+permissions:
+  contents: read
+
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ env.RUBY_VERSION }}
+
+      - name: Read upstream River revision
+        id: river_revision
+        run: |
+          ruby -rjson -e '
+            revision = JSON.parse(File.read("migration/manifest.json")).fetch("revision")
+            abort "Invalid River revision" unless /\A[0-9a-f]{40}\z/.match?(revision)
+            File.open(ENV.fetch("GITHUB_OUTPUT"), "a") { |file| file.puts("revision=#{revision}") }
+          '
+
+      - name: Checkout upstream River
+        uses: actions/checkout@v4
+        with:
+          path: upstream/river
+          persist-credentials: false
+          ref: ${{ steps.river_revision.outputs.revision }}
+          repository: riverqueue/river
+
+      - name: Verify migrations
+        run: make verify RIVER_PATH="$GITHUB_WORKSPACE/upstream/river"
+
   gem_build:
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -50,6 +86,10 @@ jobs:
         run: gem build riverqueue-sequel.gemspec
         working-directory: ./driver/riverqueue-sequel
 
+      - name: Build gem (riverqueue-rails)
+        run: gem build riverqueue-rails.gemspec
+        working-directory: ./rails/riverqueue-rails
+
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -66,6 +106,10 @@ jobs:
 
       - name: Standard Ruby (riverqueue-ruby)
         run: bundle exec standardrb
+        working-directory: .
+
+      - name: Frozen string literal comments
+        run: bundle exec rubocop --config .rubocop-frozen-string-literal.yaml --only Style/FrozenStringLiteralComment
         working-directory: .
 
       - name: bundle install (riverqueue-activerecord)
@@ -195,3 +239,44 @@ jobs:
       - name: Rspec (riverqueue-sequel)
         run: bundle exec rspec
         working-directory: ./driver/riverqueue-sequel
+
+  rails:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        include:
+          - rails: "~> 7.2.0"
+            ruby: "3.2"
+          - rails: "~> 8.0.0"
+            ruby: "3.3"
+          - rails: "~> 8.1.0"
+            ruby: "4.0"
+    env:
+      BUNDLE_FROZEN: "false"
+      RAILS_VERSION: ${{ matrix.rails }}
+      RIVER_REQUIRE_DATABASES: "1"
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: river_test
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - run: bundle install
+        working-directory: ./rails/riverqueue-rails
+      - run: bundle exec rspec
+        working-directory: ./rails/riverqueue-rails
+      - run: bundle exec standardrb
+        working-directory: ./rails/riverqueue-rails

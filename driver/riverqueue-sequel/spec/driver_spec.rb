@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "spec_helper"
 require_relative "../../../spec/driver_shared_examples"
 
@@ -60,11 +62,11 @@ RSpec.describe River::Driver::Sequel do
           now = Time.now
           river_job = DB[:river_job].returning.insert_select({
             id: 1,
+            args: %({"job_num":1}),
             attempt: 1,
             attempted_at: now,
             attempted_by: ::Sequel.pg_array(["client1"]),
             created_at: now,
-            args: %({"job_num":1}),
             finalized_at: now,
             kind: "simple",
             max_attempts: River::MAX_ATTEMPTS_DEFAULT,
@@ -186,6 +188,7 @@ RSpec.describe River::Driver::Sequel do
         ])
 
         rows = SQLITE_DB[:river_notification].order(:id).select(:payload, :topic).all
+
         expect(rows).to contain_exactly(
           {payload: JSON.dump({queue: River::QUEUE_DEFAULT}), topic: "insert"}
         )
@@ -208,6 +211,7 @@ RSpec.describe River::Driver::Sequel do
         )
 
         job, = driver.job_insert(params)
+
         expect(job.scheduled_at).to be_within(2).of(Time.now.utc)
       end
 
@@ -252,11 +256,11 @@ RSpec.describe River::Driver::Sequel do
         now_str = now.iso8601(3)
 
         SQLITE_DB[:river_job].insert(
+          args: Sequel.function(:jsonb, %({"job_num":1})),
           attempt: 1,
           attempted_at: now_str,
           attempted_by: Sequel.function(:jsonb, JSON.dump(["client1"])),
           created_at: now_str,
-          args: Sequel.function(:jsonb, %({"job_num":1})),
           finalized_at: now_str,
           kind: "simple",
           max_attempts: River::MAX_ATTEMPTS_DEFAULT,

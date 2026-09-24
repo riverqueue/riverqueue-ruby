@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "spec_helper"
 require_relative "../../../spec/driver_shared_examples"
 
@@ -129,6 +131,7 @@ RSpec.describe River::Driver::ActiveRecord do
           )
 
           job, = driver.job_insert(params)
+
           expect(job.scheduled_at).to be_within(2).of(Time.now.utc)
         end
 
@@ -136,6 +139,7 @@ RSpec.describe River::Driver::ActiveRecord do
           next unless config[:adapter] == :sqlite
 
           time = Time.utc(2026, 8, 31, 12, 34, 56) + 0.1236
+
           expect(driver.send(:format_time, time)).to eq("2026-08-31 12:34:56.124")
         end
       end
@@ -150,7 +154,7 @@ RSpec.describe River::Driver::ActiveRecord do
               ])
             )
           else
-            River::Driver::ActiveRecord::RiverJob.create(
+            driver.instance_variable_get(:@job_model).create(
               id: 1,
               args: {"job_num" => 1},
               kind: "simple",
@@ -161,7 +165,7 @@ RSpec.describe River::Driver::ActiveRecord do
             )
           end
 
-          river_job = River::Driver::ActiveRecord::RiverJob.first
+          river_job = driver.instance_variable_get(:@job_model).first
           job_row = driver.send(:to_job_row_from_model, river_job)
 
           expect(job_row).to be_an_instance_of(River::JobRow)
@@ -198,13 +202,13 @@ RSpec.describe River::Driver::ActiveRecord do
                 Digest::SHA256.digest("unique_key_str")]
             )
           else
-            River::Driver::ActiveRecord::RiverJob.create(
+            driver.instance_variable_get(:@job_model).create(
               id: 1,
+              args: {"job_num" => 1},
               attempt: 1,
               attempted_at: now,
               attempted_by: ["client1"],
               created_at: now,
-              args: {"job_num" => 1},
               finalized_at: now,
               kind: "simple",
               max_attempts: River::MAX_ATTEMPTS_DEFAULT,
@@ -217,7 +221,7 @@ RSpec.describe River::Driver::ActiveRecord do
             )
           end
 
-          river_job = River::Driver::ActiveRecord::RiverJob.first
+          river_job = driver.instance_variable_get(:@job_model).first
           job_row = driver.send(:to_job_row_from_model, river_job)
 
           expect(job_row).to be_an_instance_of(River::JobRow)
@@ -253,7 +257,7 @@ RSpec.describe River::Driver::ActiveRecord do
               ])
             )
           else
-            River::Driver::ActiveRecord::RiverJob.create(
+            driver.instance_variable_get(:@job_model).create(
               args: {"job_num" => 1},
               errors: [JSON.dump({at: now, attempt: 1, error: "job failure", trace: "error trace"})],
               kind: "simple",
@@ -262,7 +266,7 @@ RSpec.describe River::Driver::ActiveRecord do
             )
           end
 
-          river_job = River::Driver::ActiveRecord::RiverJob.first
+          river_job = driver.instance_variable_get(:@job_model).first
           job_row = driver.send(:to_job_row_from_model, river_job)
 
           expect(job_row.errors.count).to be(1)
@@ -281,7 +285,7 @@ RSpec.describe River::Driver::ActiveRecord do
 
       describe "#postgres_to_job_row_from_raw" do
         it "converts a database record to `River::JobRow` with minimal properties" do
-          res = River::Driver::ActiveRecord::RiverJob.insert({
+          res = driver.instance_variable_get(:@job_model).insert({
             id: 1,
             args: {"job_num" => 1},
             kind: "simple",
@@ -312,13 +316,13 @@ RSpec.describe River::Driver::ActiveRecord do
 
         it "converts a database record to `River::JobRow` with all properties" do
           now = Time.now
-          res = River::Driver::ActiveRecord::RiverJob.insert({
+          res = driver.instance_variable_get(:@job_model).insert({
             id: 1,
+            args: {"job_num" => 1},
             attempt: 1,
             attempted_at: now,
             attempted_by: ["client1"],
             created_at: now,
-            args: {"job_num" => 1},
             finalized_at: now,
             kind: "simple",
             max_attempts: River::MAX_ATTEMPTS_DEFAULT,
@@ -355,7 +359,7 @@ RSpec.describe River::Driver::ActiveRecord do
 
         it "with errors" do
           now = Time.now.utc
-          res = River::Driver::ActiveRecord::RiverJob.insert({
+          res = driver.instance_variable_get(:@job_model).insert({
             args: {"job_num" => 1},
             errors: [JSON.dump(
               {

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module River
   # Contains an interface used by the top-level River module to interface with
   # its driver implementations. All types and methods in this module should be
@@ -7,9 +9,11 @@ module River
     # Insert parameters for a job. This is sent to underlying drivers and is meant
     # for internal use only. Its interface is subject to change.
     class JobInsertParams
+      attr_accessor :args
       attr_accessor :encoded_args
       attr_accessor :kind
       attr_accessor :max_attempts
+      attr_accessor :metadata
       attr_accessor :priority
       attr_accessor :queue
       attr_accessor :scheduled_at
@@ -22,17 +26,16 @@ module River
         encoded_args:,
         kind:,
         max_attempts:,
-        priority:,
-        queue:,
-        scheduled_at:,
-        state:,
-        tags:,
+        priority:, queue:, scheduled_at:, state:, tags:, metadata: {},
         unique_key: nil,
-        unique_states: nil
+        unique_states: nil,
+        args: nil
       )
+        self.args = args
         self.encoded_args = encoded_args
         self.kind = kind
         self.max_attempts = max_attempts
+        self.metadata = metadata
         self.priority = priority
         self.queue = queue
         self.scheduled_at = scheduled_at
@@ -44,3 +47,5 @@ module River
     end
   end
 end
+
+require_relative "driver/runtime"

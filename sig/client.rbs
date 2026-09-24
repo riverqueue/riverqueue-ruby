@@ -4,27 +4,57 @@ module River
   QUEUE_DEFAULT: String
 
   class Client
+    @config: Config
     @driver: _Driver
+    @runtime: ClientRuntime
     @time_now_utc: ^() -> Time
 
-    def initialize: (_Driver driver) -> void
-    def insert: (jobArgs, ?insert_opts: InsertOpts) -> InsertResult
-    def insert_many: (Array[jobArgs | InsertManyParams]) -> Array[InsertResult]
+    attr_reader config: Config
+    attr_reader driver: _Driver
+
+    def initialize: (_Driver driver, ?config: Config?) -> void
+    def __finish_claimed_job: (JobRow, ?Exception?) -> untyped
+    def __perform_job: (Integer, ?allow_scheduled: bool) -> untyped
+    def __interrupt_workers: () -> untyped
+    def __runtime_healthy?: () -> bool
+    def id: () -> String
+    def insert: (jobArgs, ?insert_opts: InsertOpts) -> JobInsertResult
+    def insert_many: (Array[jobArgs | InsertManyParams]) -> Array[JobInsertResult]
+    def job_cancel: (Integer) -> JobRow
+    def job_delete: (Integer) -> JobRow
+    def job_delete_many: (JobListParams) -> untyped
+    def job_get: (Integer) -> JobRow
+    def job_list: (?JobListParams) -> untyped
+    def job_retry: (Integer) -> JobRow
+    def job_update: (Integer, JobUpdateParams) -> JobRow
+    def periodic_jobs: () -> PeriodicJobBundle
+    def queue_add: (String | Symbol, QueueConfig | Integer) -> self
+    def queue_get: (String | Symbol) -> Queue
+    def queue_list: (?max: Integer) -> untyped
+    def queue_pause: (String | Symbol) -> bool
+    def queue_remove: (String | Symbol) -> self
+    def queue_resume: (String | Symbol) -> bool
+    def queue_update: (String | Symbol, metadata: Hash[untyped, untyped]) -> Queue
+    def start: () -> self
+    def started?: () -> bool
+    def stop: (?wait: bool) -> self
+    def stop_and_cancel: () -> self
+    def stopped?: () -> bool
+    def subscribe: (*Symbol | String kinds, ?buffer_size: Integer) -> Subscription
 
     DEFAULT_UNIQUE_STATES: Array[jobStateAll]
     EMPTY_INSERT_OPTS: InsertOpts
     REQUIRED_UNIQUE_STATES: Array[jobStateAll]
-
-    private def insert_and_check_unique_job: (Driver::JobInsertParams) -> InsertResult
-    private def make_insert_params: (jobArgs, InsertOpts) -> Driver::JobInsertParams
-    private def make_unique_key_and_bitmask: (Driver::JobInsertParams, UniqueOpts) -> [String, String]
-    private def truncate_time: (Time, Integer) -> Time
-    private def uint64_to_int64: (Integer) -> Integer
-
     TAG_RE: Regexp
 
+    private def insert_and_check_unique_job: (Driver::JobInsertParams) -> JobInsertResult
+    private def make_insert_params: (jobArgs, InsertOpts) -> Driver::JobInsertParams
+    private def make_unique_key_and_bitmask: (Driver::JobInsertParams, UniqueOpts) -> [String, String]
+    private def run_insert_plugins: (Array[Driver::JobInsertParams]) { () -> Array[JobInsertResult] } -> Array[JobInsertResult]
+    private def truncate_time: (Time, Integer) -> Time
+    private def uint64_to_int64: (Integer) -> Integer
     private def validate_tags: (Array[String]) -> Array[String]
-    private def validate_unique_states: (Array[jobStateAll]) -> Array[jobStateAll]
+    private def validate_unique_states: (Array[jobStateInput]) -> Array[jobStateAll]
   end
 
   class InsertManyParams
@@ -38,7 +68,7 @@ module River
     def is_a?: (Class) -> bool
   end
 
-  class InsertResult
+  class JobInsertResult
     @job: JobRow
     @unique_skipped_as_duplicated: bool
 

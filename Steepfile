@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 D = Steep::Diagnostic
 
 target :lib do
@@ -5,7 +7,12 @@ target :lib do
 
   library "digest"
   library "json"
+  library "logger"
+  library "optparse"
+  library "securerandom"
+  library "socket"
   library "time"
+  library "timeout"
 
   signature "sig"
 
