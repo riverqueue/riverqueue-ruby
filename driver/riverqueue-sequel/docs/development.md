@@ -7,13 +7,15 @@ $ bundle install
 ```
 ## Run tests
 
-Create a test database and migrate with River's CLI:
+Create a test database:
 
 ```shell
-$ go install github.com/riverqueue/river/cmd/river
 $ createdb river_test
-$ river migrate-up --database-url "postgres://localhost/river_test"
 ```
+
+Tests migrate their own disposable schemas using the bundled SQL and leave
+existing tables untouched. The database user needs permission to create and drop
+schemas. Set `TEST_DATABASE_URL` to use a different PostgreSQL database.
 
 Run all specs:
 

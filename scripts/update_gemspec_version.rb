@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #
 # Updates the version in a gemspec file since doing it from the shell is a total
 # pain.

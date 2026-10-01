@@ -6,22 +6,120 @@
 $ bundle install
 $ pushd driver/riverqueue-activerecord && bundle install && popd
 $ pushd driver/riverqueue-sequel && bundle install && popd
+$ pushd rails/riverqueue-rails && bundle install && popd
 ```
+
+Pro lives in the separate private `riverqueue-ruby-pro` repository. If you have
+access, check it out alongside this repository and run
+`make -C ../riverqueue-ruby-pro install`. Root `make install` also installs its
+dependencies when that sibling checkout is present.
+
+Keep the root lockfile usable on both macOS and Linux when updating dependencies.
+Run `bundle lock --add-platform x86_64-linux` and commit the resulting lockfile;
+CI uses frozen dependency installation and cannot add missing platforms itself.
+
 ## Run tests
 
-Create a test database and migrate with River's CLI:
+Create a test database:
 
 ```shell
-$ go install github.com/riverqueue/river/cmd/river
 $ createdb river_test
-$ river migrate-up --database-url "postgres://localhost/river_test"
 ```
 
-Run all specs:
+Run the core, SQL driver packages, and Rails integration, plus Redis and Pro
+when their local checkouts are present:
 
 ```shell
-$ bundle exec rspec spec
+$ RIVER_REQUIRE_DATABASES=1 make test
 ```
+
+Package suites run in separate processes, four at a time by default. Set
+`TEST_JOBS=1` for serial execution, or choose another concurrency with
+`make test TEST_JOBS=2`. Each package retains its own coverage checks.
+
+Real database tests run by default. `RIVER_REQUIRE_DATABASES=1` requires both
+PostgreSQL and SQLite to be available instead of permitting local skips. CI
+also requires them. Set `TEST_DATABASE_URL` to override the PostgreSQL test
+database URL. Tests create and migrate disposable schemas with the bundled SQL;
+the database user must be able to create and drop schemas. No existing River
+tables or Go installation are needed.
+
+Rollback-wrapped tests share an empty schema for the suite, then drop it on exit.
+Each example rolls back its writes instead of deleting shared tables, so test
+speed is independent of existing data in `public`, which is left untouched.
+
+Both driver packages run the same insertion and runtime contracts from
+`spec/driver_shared_examples.rb` and `spec/driver_runtime_shared_examples.rb`
+against PostgreSQL and SQLite. These cover job state transitions, scheduling,
+rescue, metadata, filtering, deletion, transactions, queues, and leadership.
+Adapter-specific conversion tests remain in each driver's suite.
+
+The driver suites also exercise Go-style Yugabyte capability simulations on
+PostgreSQL. For actual YSQL storage/transaction checks, run `make test/yugabyte`
+with `YUGABYTE_DATABASE_URL` pointing to a disposable database. See
+[Yugabyte verification](yugabyte.md#verification).
+
+`spec/client_driver_shared_examples.rb` additionally starts real worker threads
+for each combination, testing transaction visibility and rollback, committed
+bulk insertion, output, retries, and exhausted jobs. These tests need committed
+data, so they use disposable PostgreSQL schemas and temporary file-backed SQLite
+databases, initialized by batching the bundled canonical migration SQL, not
+the shared public job tables. Migration tests still use `River::Migrator`,
+covering upgrades, downgrades, legacy history, rollback, and populated data. See [migrations](migrations.md)
+for synchronizing the SQL with upstream Go.
+
+`bundle exec rspec spec` from the repository root runs only the core suite;
+use `make test` for the SQL adapter matrix, Rails, and optional Redis and Pro suites.
+The optional suites run only when `driver/riverqueue-redis` or the sibling
+`../riverqueue-ruby-pro` gem exists. Override `RIVERQUEUE_PRO_PATH` to use another
+Pro checkout. Missing packages are skipped; failures in present packages still
+fail the test run. Pro also provides its own `make test` and `make lint` targets.
+
+Redis also has driver-local targets for running its suite independently and
+verifying Go interoperability. When working on the local experimental driver,
+install Redis 7+ (`redis-server` on PATH) and run:
+
+```shell
+$ make -C driver/riverqueue-redis install
+$ make -C driver/riverqueue-redis test
+$ make -C driver/riverqueue-redis verify RIVER_PATH=/path/to/river
+```
+
+The Redis suite starts a disposable server on a private Unix socket with
+persistence disabled; it never flushes a shared Redis database. It runs the
+shared runtime and client contracts plus key/index, conflict, and atomicity tests.
+The driver-local `verify` target also compares the bundled Lua scripts
+and builds a Go helper that verifies real Go/Ruby interoperability. This requires
+a Go checkout containing the experimental `riverredisv9` driver and its Go
+toolchain. Redis and Pro are held back from the public release and are not built,
+linted, or tested by public CI. Redis remains local to this checkout; the Pro
+implementation and its test suite live in their separate private repository.
+
+## Verify migrations
+
+The shared Go/Ruby insertion contract has its own pinned, fail-on-skip target:
+see [conformance](../conformance/README.md) for setup, verified profiles, and the
+remaining runtime interoperability work.
+
+Check bundled PostgreSQL and SQLite migrations against the local Go checkout:
+
+```shell
+$ make verify
+$ make verify RIVER_PATH=/path/to/river
+```
+
+`RIVER_PATH` defaults to `../river`. Verification checks the exact SQL files,
+license, and manifest, including the upstream commit. It needs only Ruby and Git,
+not Go, database access, or installed gems. CI checks out `riverqueue/river` at
+the revision in `migration/manifest.json` and runs the same target. This verifies
+the recorded source, not whether newer migrations have been published upstream.
+See [updating the bundled SQL](migrations.md#updating-the-bundled-sql) to update
+the files and recorded revision together.
+
+The [mainline parity audit](upstream-parity.md) records each reviewed Go commit,
+its Ruby disposition, and remaining feature gaps. Use its reviewed revision as
+the starting point for the next mainline review; the conformance branch has a
+separate pin.
 
 ## Run lint
 
@@ -37,7 +135,9 @@ $ bundle exec steep check
 
 ## Code coverage
 
-Running the entire test suite will produce a coverage report, and will fail if line and branch coverage is below 100%. Run the suite and open `coverage/index.html` to find lines or branches that weren't covered:
+The core and driver suites require 100% line and branch coverage of production
+code; shared test files are excluded. Run the suite and open
+`coverage/index.html` to find lines or branches that weren't covered:
 
 ```shell
 $ bundle exec rspec spec
@@ -45,6 +145,9 @@ $ open coverage/index.html
 ```
 
 ## Publish gems
+
+The Pro gem is released separately from the private `riverqueue-ruby-pro`
+repository. Follow its README; do not include it in the public release below.
 
 1. Choose a version, run scripts to update the versions in each gemspec file, build each gem, and `bundle install` which will update its `Gemfile.lock` with the new version:
 
@@ -54,15 +157,21 @@ $ open coverage/index.html
 
     ruby scripts/update_gemspec_version.rb riverqueue.gemspec
     ruby scripts/update_gemspec_version.rb driver/riverqueue-activerecord/riverqueue-activerecord.gemspec
+    ruby scripts/update_gemspec_version.rb driver/riverqueue-redis/riverqueue-redis.gemspec
     ruby scripts/update_gemspec_version.rb driver/riverqueue-sequel/riverqueue-sequel.gemspec
+    ruby scripts/update_gemspec_version.rb rails/riverqueue-rails/riverqueue-rails.gemspec
 
     gem build riverqueue.gemspec
     pushd driver/riverqueue-activerecord && gem build riverqueue-activerecord.gemspec && popd
+    pushd driver/riverqueue-redis && gem build riverqueue-redis.gemspec && popd
     pushd driver/riverqueue-sequel && gem build riverqueue-sequel.gemspec && popd
+    pushd rails/riverqueue-rails && gem build riverqueue-rails.gemspec && popd
 
     bundle install
     pushd driver/riverqueue-activerecord && bundle install && popd
+    pushd driver/riverqueue-redis && bundle install && popd
     pushd driver/riverqueue-sequel && bundle install && popd
+    pushd rails/riverqueue-rails && bundle install && popd
 
     gco -b $USER-$VERSION
     ```
@@ -76,7 +185,9 @@ $ open coverage/index.html
 
     gem push riverqueue-${"${VERSION}"/v/}.gem
     pushd driver/riverqueue-activerecord && gem push riverqueue-activerecord-${"${VERSION}"/v/}.gem && popd
+    pushd driver/riverqueue-redis && gem push riverqueue-redis-${"${VERSION}"/v/}.gem && popd
     pushd driver/riverqueue-sequel && gem push riverqueue-sequel-${"${VERSION}"/v/}.gem && popd
+    pushd rails/riverqueue-rails && gem push riverqueue-rails-${"${VERSION}"/v/}.gem && popd
 
     git tag $VERSION
     git push --tags

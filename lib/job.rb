@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module River
   JOB_STATE_AVAILABLE = "available"
   JOB_STATE_CANCELLED = "cancelled"
@@ -10,36 +12,38 @@ module River
 
   # Provides a way of creating a job args from a simple Ruby hash for a quick
   # way to insert a job without having to define a class. The first argument is
-  # a "kind" string for identifying the job in the database and the second is a
+  # a kind (symbol or string) identifying the job in the database and the second is a
   # hash that will be encoded to JSON.
   #
   # For example:
   #
-  #   insert_res = client.insert(River::JobArgsHash.new("job_kind", {
+  #   insert_res = client.insert(River::JobArgsHash.new(:job_kind, {
   #     job_num: 1
   #   }))
   class JobArgsHash
-    def initialize(kind, hash)
-      raise "kind should be non-nil" if !kind
-      raise "hash should be non-nil" if !hash
-
-      @kind = kind
-      @hash = hash
-    end
-
+    # Job kind persisted to the database.
     attr_reader :kind
 
+    # Creates job arguments with a database kind and JSON-compatible hash.
+    def initialize(kind, hash)
+      raise ArgumentError, "kind should be non-nil" if !kind
+      raise ArgumentError, "hash should be non-nil" if !hash
+
+      @hash = hash
+      @kind = kind.to_s
+    end
+
+    # Encodes the argument hash for insertion.
     def to_json
-      JSON.dump(@hash)
+      # JSON.dump reads mutable global options that are inaccessible in Ractors.
+      JSON.generate(@hash)
     end
   end
 
   # JobRow contains the properties of a job that are persisted to the database.
   class JobRow
-    # ID of the job. Generated as part of a Postgres sequence and generally
-    # ascending in nature, but there may be gaps in it as transactions roll
-    # back.
-    attr_accessor :id
+    # Internal driver/runtime diagnostic, not a persisted column.
+    attr_accessor :__decode_error
 
     # The job's args as a hash decoded from JSON.
     attr_accessor :args
@@ -71,6 +75,11 @@ module River
     # successfully or errored for the last time such that it'll no longer be
     # retried.
     attr_accessor :finalized_at
+
+    # ID of the job. Generated as part of a Postgres sequence and generally
+    # ascending in nature, but there may be gaps in it as transactions roll
+    # back.
+    attr_accessor :id
 
     # Kind uniquely identifies the type of job and instructs which worker
     # should work it. It is set at insertion time via `#kind` on job args.
@@ -163,7 +172,8 @@ module River
   # A failed job work attempt containing information about the error or panic
   # that occurred.
   class AttemptError
-    # The time at which the error occurred.
+    # The time at which the error occurred. Unreadable historical timestamps
+    # become Time.utc(1), matching Go's zero time.
     attr_accessor :at
 
     # The attempt number on which the error occurred (maps to #attempt on a job
@@ -188,6 +198,11 @@ module River
       self.attempt = attempt
       self.error = error
       self.trace = trace
+    end
+
+    # Returns the database-compatible representation of this attempt error.
+    def to_h
+      {at: at.utc.iso8601(6), attempt: attempt, error: error, trace: trace}
     end
   end
 end

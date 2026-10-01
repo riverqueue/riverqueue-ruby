@@ -1,0 +1,7 @@
+{
+  "application_name": "river-conformance-ruby",
+  "command": ["${RIVERQUEUE_RUBY_EXECUTABLE}", "${RIVERQUEUE_RUBY_ROOT}/conformance/adapter.rb"],
+  "implementation": "ruby",
+  "profiles": ["insert-only-v1"],
+  "version": "0.11.0"
+}

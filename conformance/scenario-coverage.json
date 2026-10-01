@@ -1,0 +1,11 @@
+{
+  "profile": "insert-only-v1",
+  "scenarios": {
+    "insert_only_profile_handshake": ["conformance/spec/adapter_spec.rb"],
+    "insert_only_insert_reference_work": ["spec/client_spec.rb", "spec/insertion_feature_spec.rb"],
+    "insert_only_typed_batch": ["spec/client_spec.rb", "spec/driver_shared_examples.rb"],
+    "insert_only_transactional_insert": ["spec/client_driver_shared_examples.rb", "spec/insert_notification_shared_examples.rb"],
+    "insert_only_unique_insert": ["spec/unique_args_spec.rb", "spec/driver_shared_examples.rb"],
+    "insert_only_insert_notification": ["spec/insert_notification_shared_examples.rb"]
+  }
+}
