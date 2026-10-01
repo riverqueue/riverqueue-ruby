@@ -26,8 +26,8 @@ Create a test database:
 $ createdb river_test
 ```
 
-Run the core, SQL driver packages, and Rails integration, plus Redis and Pro
-when their local checkouts are present:
+Run the core, SQL driver packages, and Rails integration, plus Pro when its
+sibling checkout is present:
 
 ```shell
 $ RIVER_REQUIRE_DATABASES=1 make test
@@ -69,31 +69,12 @@ covering upgrades, downgrades, legacy history, rollback, and populated data. See
 for synchronizing the SQL with upstream Go.
 
 `bundle exec rspec spec` from the repository root runs only the core suite;
-use `make test` for the SQL adapter matrix, Rails, and optional Redis and Pro suites.
-The optional suites run only when `driver/riverqueue-redis` or the sibling
-`../riverqueue-ruby-pro` gem exists. Override `RIVERQUEUE_PRO_PATH` to use another
-Pro checkout. Missing packages are skipped; failures in present packages still
-fail the test run. Pro also provides its own `make test` and `make lint` targets.
-
-Redis also has driver-local targets for running its suite independently and
-verifying Go interoperability. When working on the local experimental driver,
-install Redis 7+ (`redis-server` on PATH) and run:
-
-```shell
-$ make -C driver/riverqueue-redis install
-$ make -C driver/riverqueue-redis test
-$ make -C driver/riverqueue-redis verify RIVER_PATH=/path/to/river
-```
-
-The Redis suite starts a disposable server on a private Unix socket with
-persistence disabled; it never flushes a shared Redis database. It runs the
-shared runtime and client contracts plus key/index, conflict, and atomicity tests.
-The driver-local `verify` target also compares the bundled Lua scripts
-and builds a Go helper that verifies real Go/Ruby interoperability. This requires
-a Go checkout containing the experimental `riverredisv9` driver and its Go
-toolchain. Redis and Pro are held back from the public release and are not built,
-linted, or tested by public CI. Redis remains local to this checkout; the Pro
-implementation and its test suite live in their separate private repository.
+use `make test` for the SQL adapter matrix, Rails, and optional Pro suite.
+The Pro suite runs only when the sibling `../riverqueue-ruby-pro` gem exists.
+Override `RIVERQUEUE_PRO_PATH` to use another Pro checkout. A missing checkout is
+skipped; failures in a present checkout still fail the test run. Pro also provides
+its own `make test` and `make lint` targets. It is not built, linted, or tested by
+public CI.
 
 ## Verify migrations
 
@@ -157,19 +138,16 @@ repository. Follow its README; do not include it in the public release below.
 
     ruby scripts/update_gemspec_version.rb riverqueue.gemspec
     ruby scripts/update_gemspec_version.rb driver/riverqueue-activerecord/riverqueue-activerecord.gemspec
-    ruby scripts/update_gemspec_version.rb driver/riverqueue-redis/riverqueue-redis.gemspec
     ruby scripts/update_gemspec_version.rb driver/riverqueue-sequel/riverqueue-sequel.gemspec
     ruby scripts/update_gemspec_version.rb rails/riverqueue-rails/riverqueue-rails.gemspec
 
     gem build riverqueue.gemspec
     pushd driver/riverqueue-activerecord && gem build riverqueue-activerecord.gemspec && popd
-    pushd driver/riverqueue-redis && gem build riverqueue-redis.gemspec && popd
     pushd driver/riverqueue-sequel && gem build riverqueue-sequel.gemspec && popd
     pushd rails/riverqueue-rails && gem build riverqueue-rails.gemspec && popd
 
     bundle install
     pushd driver/riverqueue-activerecord && bundle install && popd
-    pushd driver/riverqueue-redis && bundle install && popd
     pushd driver/riverqueue-sequel && bundle install && popd
     pushd rails/riverqueue-rails && bundle install && popd
 
@@ -185,7 +163,6 @@ repository. Follow its README; do not include it in the public release below.
 
     gem push riverqueue-${"${VERSION}"/v/}.gem
     pushd driver/riverqueue-activerecord && gem push riverqueue-activerecord-${"${VERSION}"/v/}.gem && popd
-    pushd driver/riverqueue-redis && gem push riverqueue-redis-${"${VERSION}"/v/}.gem && popd
     pushd driver/riverqueue-sequel && gem push riverqueue-sequel-${"${VERSION}"/v/}.gem && popd
     pushd rails/riverqueue-rails && gem push riverqueue-rails-${"${VERSION}"/v/}.gem && popd
 
