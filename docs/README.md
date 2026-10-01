@@ -738,30 +738,6 @@ client = River::Client.new(River::Driver::Sequel.new(DB))
 
 Neither driver installs `pg` or `sqlite3`; the application chooses its adapter.
 
-### Redis (experimental)
-
-Add `riverqueue-redis` to use Redis 7+ without either SQL adapter:
-
-```ruby
-require "riverqueue-redis"
-
-pool = RedisClient.config(url: ENV.fetch("REDIS_URL")).new_pool(size: 10)
-client = River::Client.new(
-  River::Driver::Redis.new(pool, prefix: "my_app", schema: "shared"),
-  config: River::Config.new(
-    queues: {ruby: 10},
-    workers: River::Workers.new.add(SortWorker)
-  )
-).start
-```
-
-Ruby and Go's experimental `riverredisv9` driver can share the same namespace,
-using identical job records, indexes, and ID allocation. Stop the client before
-closing the pool. No migrations are needed. Redis-only transactions cannot be
-atomic with application SQL writes; Rails integration and Pro's SQL-backed
-features are not supported. See the [Redis driver guide](../driver/riverqueue-redis/README.md)
-for durability requirements, compatibility, and other experimental limitations.
-
 ## Testing
 
 For database-backed insertion assertions and synchronous worker tests, see
