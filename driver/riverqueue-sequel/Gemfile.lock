@@ -1,7 +1,7 @@
 PATH
   remote: ../..
   specs:
-    riverqueue (0.11.0)
+    riverqueue (0.12.0)
       logger (> 0, < 1000)
       optparse (> 0, < 1000)
       securerandom (> 0, < 1000)
@@ -10,8 +10,8 @@ PATH
 PATH
   remote: .
   specs:
-    riverqueue-sequel (0.11.0)
-      riverqueue (= 0.11.0)
+    riverqueue-sequel (0.12.0)
+      riverqueue (= 0.12.0)
       sequel (> 0, < 1000)
 
 GEM
@@ -107,4 +107,4 @@ DEPENDENCIES
   standard
 
 BUNDLED WITH
-   4.0.9
+  4.0.9

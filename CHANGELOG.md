@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-01
+
 ### Added
 
 - Add a full Ruby client for River with Go-compatible job insertion and execution on PostgreSQL, SQLite, and YugabyteDB through ActiveRecord or Sequel. Includes workers, retries, cancellation, periodic and resumable jobs, job-persisted logging, job administration, migration and worker CLIs, and testing helpers. Rails and Active Job integration is available through `riverqueue-rails`, with workflows, batches, sequences, concurrency controls, and other advanced features in the separately distributed `riverqueue-pro` gem. [PR #70](https://github.com/riverqueue/riverqueue-ruby/pull/70).
